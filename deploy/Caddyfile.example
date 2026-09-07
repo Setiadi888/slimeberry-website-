@@ -1,0 +1,19 @@
+# Caddy already fronts this host (it answered with a 308 to HTTPS).
+# Add a site block that proxies to the app on loopback:3000.
+#
+#   sudo nano /etc/caddy/Caddyfile
+#   sudo caddy validate --config /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+
+slimeberry.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+}
+
+# Serving on the bare IP instead of a domain? Caddy cannot issue a public
+# certificate for an IP, so use an internal one and expect a browser warning:
+#
+# https://5.223.95.218 {
+# 	tls internal
+# 	reverse_proxy 127.0.0.1:3000
+# }

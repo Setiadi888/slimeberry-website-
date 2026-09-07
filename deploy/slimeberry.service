@@ -1,0 +1,37 @@
+# systemd unit for the Slimeberry Lab Next.js server.
+# Install to /etc/systemd/system/slimeberry.service
+#
+#   sudo cp deploy/slimeberry.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now slimeberry
+#
+# Adjust User and WorkingDirectory to match the account and path you deploy to.
+
+[Unit]
+Description=Slimeberry Lab (Next.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deploy
+WorkingDirectory=/srv/slimeberry
+Environment=NODE_ENV=production
+Environment=PORT=3000
+# Binds to loopback only; Caddy is the public entry point.
+Environment=HOSTNAME=127.0.0.1
+ExecStart=/usr/bin/npm run start -- -p 3000
+Restart=on-failure
+RestartSec=5
+# Give the build a moment on slower boxes before health checks matter.
+TimeoutStartSec=60
+
+# Basic hardening — the app needs nothing outside its own directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/slimeberry/.next
+
+[Install]
+WantedBy=multi-user.target
