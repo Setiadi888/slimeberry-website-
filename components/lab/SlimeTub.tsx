@@ -8,18 +8,32 @@ import { useJiggle } from '@/lib/useJiggle';
 import { onProductPulse } from '@/lib/labEvents';
 import { registerAnchor, unregisterAnchor } from '@/lib/anchors';
 import { hoverEntity, selectEntity, useIsHovered, useIsSelected } from '@/lib/interaction';
+import {
+  drawContained,
+  drawFlowerFallback,
+  drawWordmarkFallback,
+  textureFrom,
+  useBrandImage,
+} from '@/lib/brand';
 
 const LID_WHITE = '#fbfbf9';
 const BASE_GREY = '#d9d9d6';
 const INK_BLUE = '#3b4a9e';
 const INK_PURPLE = '#4b3b9e';
-const LABEL_PINK = '#f0a3c4';
+
+/** Hex to rgba, so a product's own accent can be laid down as translucent check. */
+function withAlpha(hex: string, alpha: number): string {
+  const value = Number.parseInt(hex.replace('#', ''), 16);
+  return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`;
+}
 
 /**
- * Lid artwork, drawn to a canvas rather than shipped as an image: pink gingham,
- * the stacked wordmark with its white outline, and the "fruit series" band.
+ * Lid artwork, drawn to a canvas rather than shipped as an image: gingham in the
+ * flavour's own colour, the stacked wordmark with its white outline, and the
+ * "fruit series" band. The check and the band take the tint so a shelf of these
+ * reads as one range in several flavours rather than one repeated product.
  */
-function useLidTexture(): THREE.CanvasTexture {
+function useLidTexture(tint: string, wordmark: HTMLImageElement | null): THREE.CanvasTexture {
   return useMemo(() => {
     const size = 512;
     const canvas = document.createElement('canvas');
@@ -37,7 +51,7 @@ function useLidTexture(): THREE.CanvasTexture {
     ctx.arc(c, c, size * 0.455, 0, Math.PI * 2);
     ctx.clip();
     const band = size / 15;
-    ctx.fillStyle = 'rgba(238, 140, 184, 0.55)';
+    ctx.fillStyle = withAlpha(tint, 0.5);
     for (let i = 0; i < size / band; i += 2) {
       ctx.fillRect(i * band, 0, band, size);
       ctx.fillRect(0, i * band, size, band);
@@ -50,23 +64,12 @@ function useLidTexture(): THREE.CanvasTexture {
     ctx.ellipse(c, c - 26, 168, 96, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    const stroke = (text: string, y: number, colour: string, px: number) => {
-      ctx.font = `800 ${px}px ui-rounded, "SF Pro Rounded", system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = px * 0.3;
-      ctx.strokeStyle = '#ffffff';
-      ctx.strokeText(text, c, y);
-      ctx.fillStyle = colour;
-      ctx.fillText(text, c, y);
-    };
-
-    stroke('SLIME', c - 78, INK_BLUE, 108);
-    stroke('BERRY', c + 22, INK_PURPLE, 108);
+    // the real wordmark if it has been supplied, the drawn one until then
+    if (wordmark) drawContained(ctx, wordmark, c, c - 28, size * 0.72, size * 0.52);
+    else drawWordmarkFallback(ctx, c, c - 24, 260);
 
     // "fruit series" band
-    ctx.fillStyle = LABEL_PINK;
+    ctx.fillStyle = tint;
     ctx.beginPath();
     ctx.roundRect(c - 165, c + 88, 330, 60, 30);
     ctx.fill();
@@ -78,7 +81,7 @@ function useLidTexture(): THREE.CanvasTexture {
 
     // small print
     ctx.font = '600 22px system-ui, sans-serif';
-    ctx.fillStyle = '#c4587f';
+    ctx.fillStyle = withAlpha(tint, 0.95);
     ctx.fillText('SLIME · NOT FOR CONSUMPTION', c, c + 176);
     ctx.fillText('NET 150 ml', c, c + 204);
 
@@ -86,11 +89,11 @@ function useLidTexture(): THREE.CanvasTexture {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 4;
     return texture;
-  }, []);
+  }, [tint, wordmark]);
 }
 
-/** The flower sticker on the tub wall. */
-function useStickerTexture(): THREE.CanvasTexture {
+/** The flower sticker on the tub wall: a white-edged bloom in the flavour tint. */
+function useStickerTexture(tint: string, flower: HTMLImageElement | null): THREE.CanvasTexture {
   return useMemo(() => {
     const size = 256;
     const canvas = document.createElement('canvas');
@@ -100,28 +103,15 @@ function useStickerTexture(): THREE.CanvasTexture {
     const c = size / 2;
 
     ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = '#ffffff';
-    for (let i = 0; i < 5; i++) {
-      const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
-      ctx.beginPath();
-      ctx.arc(c + Math.cos(angle) * 52, c + Math.sin(angle) * 52, 52, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.beginPath();
-    ctx.arc(c, c, 62, 0, Math.PI * 2);
-    ctx.fill();
 
-    ctx.font = '800 68px ui-rounded, "SF Pro Rounded", system-ui, sans-serif';
-    ctx.fillStyle = INK_PURPLE;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('SB', c, c + 4);
+    if (flower) drawContained(ctx, flower, c, c, size * 0.96, size * 0.96);
+    else drawFlowerFallback(ctx, c, c, c, tint);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 4;
     return texture;
-  }, []);
+  }, [tint, flower]);
 }
 
 interface SlimeTubProps {
@@ -143,8 +133,12 @@ export function SlimeTub({ product, position, scale = 1, stickerRotation = 0 }: 
   const groupRef = useRef<THREE.Group>(null);
   const tubRef = useRef<THREE.Group>(null);
   const { impulse, update } = useJiggle(140, 8);
-  const lidTexture = useLidTexture();
-  const stickerTexture = useStickerTexture();
+  /* The green flower for the greens, the blue one otherwise — the two marks
+     supplied, matched to the flavour rather than tinted from it. */
+  const wordmark = useBrandImage('wordmark');
+  const flower = useBrandImage(product.accent === '#5f8c48' || product.accent === '#7aa844' ? 'flowerGreen' : 'flowerBlue');
+  const lidTexture = useLidTexture(product.accent, wordmark);
+  const stickerTexture = useStickerTexture(product.accent, flower);
 
   const hovered = useIsHovered('product', product.id);
   const selected = useIsSelected('product', product.id);

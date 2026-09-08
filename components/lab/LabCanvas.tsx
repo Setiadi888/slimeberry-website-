@@ -6,8 +6,10 @@ import * as THREE from 'three';
 import { HOME_FOV, HOME_POSITION } from '@/lib/cameraFraming';
 import { useQuality } from '@/lib/quality';
 import { dismissHint, hoverEntity, selectEntity, setView } from '@/lib/interaction';
+import { resolveInitialRoom, stopWorldTimers, useRoom, useRoomResolved } from '@/lib/world';
 import { QualityProvider } from './QualityContext';
 import { LabScene } from './LabScene';
+import { MartScene } from '@/components/mart/MartScene';
 
 function detectWebGL(): boolean {
   try {
@@ -34,11 +36,18 @@ function Fallback({ message }: { message: string }) {
 
 export function LabCanvas() {
   const quality = useQuality();
+  const room = useRoom();
+  const resolved = useRoomResolved();
   const [support, setSupport] = useState<'checking' | 'ok' | 'missing'>('checking');
   const [contextLost, setContextLost] = useState(false);
 
   useEffect(() => {
     setSupport(detectWebGL() ? 'ok' : 'missing');
+    // Phones open in SB Mart, desktops in the Lab. Decided here rather than at
+    // module scope so the server and the first client render agree, and nothing
+    // is drawn until it is decided — otherwise a phone would flash the Lab.
+    resolveInitialRoom();
+    return stopWorldTimers;
   }, []);
 
   if (support === 'missing') {
@@ -49,7 +58,7 @@ export function LabCanvas() {
     return <Fallback message="The graphics context was lost — usually another tab took the GPU. Reload the page to reopen the lab." />;
   }
 
-  if (support === 'checking') return null;
+  if (support === 'checking' || !resolved) return null;
 
   return (
     <Canvas
@@ -80,10 +89,10 @@ export function LabCanvas() {
       }}
     >
       <QualityProvider value={quality}>
-        <fog attach="fog" args={['#f2e9de', 22, 44]} />
-        <Suspense fallback={null}>
-          <LabScene />
-        </Suspense>
+        {/* The mart is a smaller room seen from further back on a phone, so its
+            fog has to start later or the far wall greys out. */}
+        <fog attach="fog" args={room === 'lab' ? ['#f2e9de', 22, 44] : ['#f2e9de', 30, 64]} />
+        <Suspense fallback={null}>{room === 'lab' ? <LabScene /> : <MartScene />}</Suspense>
       </QualityProvider>
     </Canvas>
   );

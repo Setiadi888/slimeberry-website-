@@ -15,7 +15,7 @@ import { useLabQuality } from './QualityContext';
 const STATUS_BY_STAGE: Record<string, { label: string; color: string }> = {
   grow: { label: 'Idle', color: '#8fb3d9' },
   mix: { label: 'Running', color: '#7bbf6a' },
-  colour: { label: 'Tinting', color: '#b3a4e0' },
+  texture: { label: 'Testing', color: '#b3a4e0' },
   qc: { label: 'Checking', color: '#e8b84b' },
   pack: { label: 'Running', color: '#7bbf6a' },
 };

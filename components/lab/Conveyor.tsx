@@ -13,19 +13,23 @@ import { useLabQuality } from './QualityContext';
 
 const NO_HIT = () => null;
 
-/** Seconds for one jar to travel the whole line. Slow on purpose. */
-const TRAVEL_SECONDS = 34;
-const JAR_COUNT = 8;
-const SLAT_COUNT = 24;
+/**
+ * Seconds for one jar to travel the whole line. Slow on purpose, and scaled up
+ * from 34 with the belt's new length so the cargo still moves at the same speed.
+ */
+const TRAVEL_SECONDS = 43;
+const JAR_COUNT = 10;
+const SLAT_COUNT = 33;
 
 /**
- * The belt, running packaging → QC.
+ * The belt, running from the wall discharge east to packaging.
  *
  * Jars move at a constant speed with fixed spacing and are never scaled in or
- * out. They are spawned at `BELT.spawnX`, which sits inside the packaging
- * chute's hood, and retired at `BELT.retireX`, which sits inside the QC bench —
- * so the loop point is always behind solid geometry and a jar is never seen
- * appearing or vanishing in the open.
+ * out. They are spawned at `BELT.spawnX`, which sits inside the left wall behind
+ * the discharge hood, and retired at `BELT.retireX`, which sits inside the
+ * packaging housing — so the loop point is always behind solid geometry, and a
+ * jar is only ever seen pushing out through the strip curtain, never appearing
+ * or vanishing in the open.
  *
  * The belt slats use the same motion but wrap in the open, which is invisible
  * because they are identical and evenly spaced.
@@ -164,19 +168,34 @@ export function Conveyor() {
       </group>
 
       {/*
-        Decorative jars. Non-interactive by design — only workers, machines,
-        stations and designated product objects respond to the pointer.
+        Decorative cargo. These are Mainline cup silhouettes rather than the real
+        `SlimeTub` component: a tub on the belt must not register a product
+        anchor, or the ten of them would fight the shelved cups for the same ids.
+        Non-interactive by design — only workers, machines, stations and
+        designated product objects respond to the pointer.
       */}
-      <group ref={jarsRef} position={[0, BELT.y + 0.22, BELT.z]}>
+      <group ref={jarsRef} position={[0, BELT.y + 0.2, BELT.z]}>
         {jars.map(({ product }, index) => (
           <group key={index}>
-            <mesh castShadow raycast={NO_HIT}>
-              <cylinderGeometry args={[0.15, 0.145, 0.26, 16]} />
-              <meshPhysicalMaterial color={product.color} roughness={0.2} clearcoat={0.8} transparent opacity={0.92} />
+            {/* foot ring */}
+            <mesh position={[0, 0.02, 0]} castShadow raycast={NO_HIT}>
+              <cylinderGeometry args={[0.115, 0.12, 0.03, 20]} />
+              <meshStandardMaterial color="#d9d9d6" roughness={0.55} />
             </mesh>
-            <mesh position={[0, 0.16, 0]} castShadow raycast={NO_HIT}>
-              <cylinderGeometry args={[0.165, 0.16, 0.07, 16]} />
-              <meshStandardMaterial color={product.accent} roughness={0.45} />
+            {/* tapered body */}
+            <mesh position={[0, 0.14, 0]} castShadow raycast={NO_HIT}>
+              <cylinderGeometry args={[0.145, 0.118, 0.22, 20]} />
+              <meshPhysicalMaterial color={product.color} roughness={0.22} clearcoat={0.8} transparent opacity={0.93} />
+            </mesh>
+            {/* chunky white lid */}
+            <mesh position={[0, 0.28, 0]} castShadow raycast={NO_HIT}>
+              <cylinderGeometry args={[0.163, 0.163, 0.08, 22]} />
+              <meshStandardMaterial color="#fbfbf9" roughness={0.45} />
+            </mesh>
+            {/* the lid's printed disc, in the flavour's own colour */}
+            <mesh position={[0, 0.321, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={NO_HIT}>
+              <circleGeometry args={[0.125, 20]} />
+              <meshStandardMaterial color={product.accent} roughness={0.6} />
             </mesh>
           </group>
         ))}

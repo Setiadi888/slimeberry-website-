@@ -6,7 +6,6 @@ import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { PALETTE } from '@/lib/palette';
 import { BELT, STATION_POS } from '@/lib/layout';
-import { SIGNATURE_PRODUCTS } from '@/lib/products';
 import { useLabQuality } from './QualityContext';
 import { NO_HIT, StationGroup } from './StationGroup';
 
@@ -130,47 +129,6 @@ export function LabellingStation() {
           </mesh>
         </group>
       </group>
-    </StationGroup>
-  );
-}
-
-/** Shelves of completed product, ready to be wheeled to dispatch. */
-export function FinishedGoods() {
-  return (
-    <StationGroup id="finished" position={STATION_POS.finishedGoods} rotation={-Math.PI / 2} ringRadius={1.35} ringColor="#9dc47f">
-      <RoundedBox args={[2.6, 2.4, 0.16]} radius={0.07} smoothness={3} position={[0, 1.35, -0.38]} castShadow receiveShadow raycast={NO_HIT}>
-        <meshStandardMaterial color={PALETTE.wallMint} roughness={0.85} />
-      </RoundedBox>
-      {[-1.27, 1.27].map((x) => (
-        <RoundedBox key={x} args={[0.14, 2.4, 0.88]} radius={0.05} smoothness={3} position={[x, 1.35, 0]} castShadow receiveShadow raycast={NO_HIT}>
-          <meshStandardMaterial color={PALETTE.shell} roughness={0.65} />
-        </RoundedBox>
-      ))}
-      {[0.62, 1.42, 2.22].map((y) => (
-        <RoundedBox key={y} args={[2.55, 0.12, 0.86]} radius={0.05} smoothness={3} position={[0, y, 0]} castShadow receiveShadow raycast={NO_HIT}>
-          <meshStandardMaterial color={PALETTE.shell} roughness={0.6} />
-        </RoundedBox>
-      ))}
-
-      {/* finished stock, decorative */}
-      {[0.62, 1.42, 2.22].map((y, row) =>
-        SIGNATURE_PRODUCTS.map((product, index) => (
-          <group key={`${y}-${product.id}`} position={[(index - 1.5) * 0.6, y + 0.2, 0.02]}>
-            <mesh castShadow raycast={NO_HIT}>
-              <cylinderGeometry args={[0.19, 0.16, 0.28, 18]} />
-              <meshPhysicalMaterial
-                color={SIGNATURE_PRODUCTS[(index + row) % SIGNATURE_PRODUCTS.length].color}
-                roughness={0.3}
-                clearcoat={0.6}
-              />
-            </mesh>
-            <mesh position={[0, 0.17, 0]} castShadow raycast={NO_HIT}>
-              <cylinderGeometry args={[0.21, 0.21, 0.07, 18]} />
-              <meshStandardMaterial color="#fbfbf9" roughness={0.45} />
-            </mesh>
-          </group>
-        )),
-      )}
     </StationGroup>
   );
 }

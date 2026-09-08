@@ -9,6 +9,8 @@ import gsap from 'gsap';
 import { BASE_DISTANCE, CAMERA_PRESETS, HOME_POSITION, HOME_TARGET, solveFraming } from '@/lib/cameraFraming';
 import { useSelected, useView, type EntityKind } from '@/lib/interaction';
 import { getAnchorPosition } from '@/lib/anchors';
+import { STATION_POS } from '@/lib/layout';
+import { useRoomPhase } from '@/lib/world';
 import { useLabQuality } from './QualityContext';
 
 const FOCUS_HEIGHT: Record<EntityKind, number> = {
@@ -43,8 +45,14 @@ export function LabCamera() {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const camera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
+  /* drei publishes the controls into the R3F store once they attach. The
+     framing effect can otherwise run a beat too early, find a null ref,
+     bail, and — its deps unchanged — never run again, leaving the camera
+     parked at the canvas's initial position instead of the home framing. */
+  const attached = useThree((state) => state.controls);
   const selected = useSelected();
   const view = useView();
+  const phase = useRoomPhase();
   const { isCoarsePointer, reducedMotion } = useLabQuality();
 
   const aspect = size.width / Math.max(size.height, 1);
@@ -72,7 +80,13 @@ export function LabCamera() {
 
     const preset = !selected && view ? CAMERA_PRESETS[view] : null;
 
-    if (preset) {
+    if (phase === 'leaving') {
+      // Walking out: everything else is overridden and the camera closes on the
+      // SB Mart door, so the wipe lands on the threshold rather than on a
+      // general view of the factory.
+      nextTarget.set(STATION_POS.martDoor[0], 1.35, STATION_POS.martDoor[2] + 0.25);
+      nextPosition.copy(nextTarget).addScaledVector(homeDirection, 3.3);
+    } else if (preset) {
       // A named vantage point: same viewing direction, just closer and aimed
       // at that corner of the factory.
       nextTarget.copy(preset.target);
@@ -99,7 +113,12 @@ export function LabCamera() {
 
     controls.enabled = false;
     const timeline = gsap.timeline({
-      defaults: { duration: 1.15, ease: 'power3.inOut', overwrite: 'auto' },
+      // The door move has to finish inside the wipe's 900 ms.
+      defaults: {
+        duration: phase === 'leaving' ? 0.82 : 1.15,
+        ease: phase === 'leaving' ? 'power2.in' : 'power3.inOut',
+        overwrite: 'auto',
+      },
       onComplete: () => {
         controls.enabled = true;
       },
@@ -116,7 +135,7 @@ export function LabCamera() {
       timeline.kill();
       controls.enabled = true;
     };
-  }, [selected, view, camera, homeDistance, targetShiftX, framingBoost, reducedMotion]);
+  }, [selected, view, phase, attached, camera, homeDistance, targetShiftX, framingBoost, reducedMotion]);
 
   return (
     <OrbitControls

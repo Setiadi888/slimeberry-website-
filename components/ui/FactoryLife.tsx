@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { startFactoryLife, useThought } from '@/lib/factoryLife';
 import { getWorker } from '@/lib/workers';
+import { useHovered, useSelected } from '@/lib/interaction';
 import { AnchoredCard } from './AnchoredCard';
 
 /**
@@ -12,6 +13,8 @@ import { AnchoredCard } from './AnchoredCard';
  */
 export function FactoryLife() {
   const thought = useThought();
+  const selected = useSelected();
+  const hovered = useHovered();
   const bubbleRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => startFactoryLife(), []);
@@ -31,6 +34,13 @@ export function FactoryLife() {
   if (!thought) return null;
   const worker = getWorker(thought.workerId);
   if (!worker) return null;
+
+  /* Their card already occupies this spot, and the two stack illegibly. If you
+     are looking at someone you get what they say out loud, not what they were
+     idly thinking a moment earlier. */
+  const engaged = (reference: { kind: string; id: string } | null) =>
+    reference?.kind === 'worker' && reference.id === thought.workerId;
+  if (engaged(selected) || engaged(hovered)) return null;
 
   return (
     <AnchoredCard target={{ kind: 'worker', id: thought.workerId }} anchorHeight={1.5}>

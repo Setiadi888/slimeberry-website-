@@ -8,7 +8,10 @@ import { emitLabEvent } from '@/lib/labEvents';
 import { registerAnchor, unregisterAnchor } from '@/lib/anchors';
 import { hoverEntity, selectEntity, useIsHovered, useIsSelected } from '@/lib/interaction';
 import { onWorkerReaction, type ReactionType } from '@/lib/factoryLife';
+import { footstep, speak } from '@/lib/audio';
+import { setTrolleyPusher } from '@/lib/trolley';
 import type { WorkerData } from '@/lib/workers';
+import { CHARACTER_Y, FLOOR_TOP_Y } from '@/lib/layout';
 import { useLabQuality } from './QualityContext';
 import { WorkerModel } from './WorkerModel';
 
@@ -48,6 +51,10 @@ export function Worker({ data }: { data: WorkerData }) {
   const started = useRef(false);
   const attentionSince = useRef(0);
   const reaction = useRef<{ type: ReactionType; until: number } | null>(null);
+  /** Sign of the walk cycle last frame, so a footstep fires once per stride. */
+  const strideSign = useRef(1);
+  /** Last published trolley state, so we only write on a change. */
+  const pushing = useRef(false);
 
   useEffect(
     () =>
@@ -64,9 +71,17 @@ export function Worker({ data }: { data: WorkerData }) {
     registerAnchor('worker', data.id, group);
     return () => {
       unregisterAnchor('worker', data.id);
+      setTrolleyPusher(data.id, false);
       document.body.style.cursor = 'auto';
     };
   }, [data.id]);
+
+  /** Publishes whether this worker currently has the trolley. */
+  const setPushing = (next: boolean) => {
+    if (next === pushing.current) return;
+    pushing.current = next;
+    setTrolleyPusher(data.id, next);
+  };
 
   useFrame(({ clock }, delta) => {
     const group = groupRef.current;
@@ -77,7 +92,8 @@ export function Worker({ data }: { data: WorkerData }) {
 
     if (!started.current) {
       const first = route[0];
-      group.position.set(first.at[0], 0, first.at[1]);
+      // y is the floor's top surface plus the rig's foot offset — see CHARACTER_Y
+      group.position.set(first.at[0], CHARACTER_Y, first.at[1]);
       group.rotation.y = first.facing ?? 0;
       dwellUntil.current = elapsed + (first.dwell ?? 1);
       started.current = true;
@@ -87,7 +103,11 @@ export function Worker({ data }: { data: WorkerData }) {
 
     // ---- reacting to the visitor -----------------------------------------
     if (attending) {
-      if (attentionSince.current === 0) attentionSince.current = elapsed;
+      if (attentionSince.current === 0) {
+        attentionSince.current = elapsed;
+        // they say something as they look up — no-ops unless sound is on
+        speak(data.dialogue[Math.floor(Math.random() * data.dialogue.length)], data.id);
+      }
       const sinceHover = elapsed - attentionSince.current;
 
       const toCamera = new THREE.Vector3().subVectors(camera.position, group.position);
@@ -186,6 +206,13 @@ export function Worker({ data }: { data: WorkerData }) {
         group.position.addScaledVector(toTarget, advance);
         desiredFacing = Math.atan2(toTarget.x, toTarget.z);
         pose.phase += step * 7.2;
+
+        // one scuff per half-cycle of the walk, which is one per foot
+        const sign = Math.sin(pose.phase) >= 0 ? 1 : -1;
+        if (sign !== strideSign.current) {
+          strideSign.current = sign;
+          footstep();
+        }
       }
 
       pose.locomotion = THREE.MathUtils.damp(pose.locomotion, 1, 8, step);
@@ -194,9 +221,12 @@ export function Worker({ data }: { data: WorkerData }) {
       pose.bob = 0;
       const previous = route[(legIndex.current - 1 + route.length) % route.length];
       pose.carrying = Boolean(previous.carryOut);
+      setPushing(Boolean(previous.pushOut));
     } else {
       const here = route[legIndex.current];
       desiredFacing = here.facing ?? group.rotation.y;
+      // standing at a flagged point means they already have hold of it
+      setPushing(Boolean(here.pushOut));
 
       pose.locomotion = THREE.MathUtils.damp(pose.locomotion, 0, 9, step);
       pose.work = THREE.MathUtils.damp(pose.work, here.action === 'work' ? 1 : 0, 6, step);
@@ -237,7 +267,7 @@ export function Worker({ data }: { data: WorkerData }) {
 
       <WorkerModel pose={pose} appearance={data.appearance} />
 
-      <mesh position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={attending}>
+      <mesh position={[0, FLOOR_TOP_Y - CHARACTER_Y + 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={attending}>
         <ringGeometry args={[0.34, 0.42, 32]} />
         <meshBasicMaterial color={data.appearance.cap} transparent opacity={selected ? 0.9 : 0.5} />
       </mesh>

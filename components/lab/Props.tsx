@@ -91,14 +91,16 @@ export function Pipes() {
   const { reducedMotion } = useLabQuality();
   const beadsRef = useRef<THREE.Group>(null);
 
+  // A short arc now: the tanks stand next to the mixer rather than across the
+  // room, so the pipe only has to hop the gap between them.
   const curve = useMemo(
     () =>
       new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0.0, 2.15, -3.35),
-        new THREE.Vector3(0.5, 3.0, -4.3),
-        new THREE.Vector3(1.1, 3.15, -4.5),
-        new THREE.Vector3(1.6, 2.6, -4.2),
-        new THREE.Vector3(1.75, 2.0, -3.9),
+        new THREE.Vector3(-3.15, 2.2, -3.45),
+        new THREE.Vector3(-2.6, 2.72, -3.55),
+        new THREE.Vector3(-2.0, 2.84, -3.6),
+        new THREE.Vector3(-1.4, 2.62, -3.55),
+        new THREE.Vector3(-0.95, 2.22, -3.5),
       ]),
     [],
   );

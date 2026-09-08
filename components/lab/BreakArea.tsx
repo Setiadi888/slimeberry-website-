@@ -74,40 +74,64 @@ export function BreakArea() {
         </mesh>
       </group>
 
-      {/* cups, tray, sugar */}
+      {/* Proper mugs, not the little espresso cups: wider, straight-sided, with
+          a real handle and a saucer under one of them. This is the corner people
+          actually stand around, so it wanted the mug you would bring to it. */}
       {[
-        [0.22, 0.1],
-        [0.36, -0.14],
-        [0.1, -0.3],
-      ].map(([cx, cz], index) => (
-        <group key={index} position={[cx, 1.0, cz]}>
-          <mesh castShadow raycast={NO_HIT}>
-            <cylinderGeometry args={[0.052, 0.042, 0.1, 14]} />
+        { at: [0.3, 0.12] as const, tint: PALETTE.berry, angle: 0.5, saucer: true },
+        { at: [0.12, -0.32] as const, tint: '#8ed0e8', angle: -1.1, saucer: false },
+        { at: [0.44, -0.1] as const, tint: PALETTE.butter, angle: 2.2, saucer: false },
+      ].map(({ at, tint, angle, saucer }, index) => (
+        <group key={index} position={[at[0], 1.0, at[1]]} rotation={[0, angle, 0]}>
+          {saucer && (
+            <mesh position={[0, 0.008, 0]} castShadow receiveShadow raycast={NO_HIT}>
+              <cylinderGeometry args={[0.105, 0.1, 0.016, 20]} />
+              <meshStandardMaterial color="#fdfaf4" roughness={0.45} />
+            </mesh>
+          )}
+          <mesh position={[0, saucer ? 0.085 : 0.075, 0]} castShadow raycast={NO_HIT}>
+            <cylinderGeometry args={[0.072, 0.066, 0.14, 20]} />
             <meshStandardMaterial color="#fdfaf4" roughness={0.4} />
           </mesh>
-          <mesh position={[0, 0.038, 0]} raycast={NO_HIT}>
-            <cylinderGeometry args={[0.044, 0.044, 0.016, 14]} />
-            <meshStandardMaterial color="#6f4327" roughness={0.3} />
+          {/* a band of colour, the way a mug set is usually told apart */}
+          <mesh position={[0, saucer ? 0.045 : 0.035, 0]} raycast={NO_HIT}>
+            <cylinderGeometry args={[0.0735, 0.069, 0.045, 20]} />
+            <meshStandardMaterial color={tint} roughness={0.5} />
           </mesh>
-          <mesh position={[0.058, 0.01, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_HIT}>
-            <torusGeometry args={[0.026, 0.008, 6, 12]} />
+          {/* coffee */}
+          <mesh position={[0, saucer ? 0.142 : 0.132, 0]} raycast={NO_HIT}>
+            <cylinderGeometry args={[0.062, 0.062, 0.012, 20]} />
+            <meshStandardMaterial color="#5b3a26" roughness={0.3} />
+          </mesh>
+          {/* handle */}
+          <mesh
+            position={[0.078, saucer ? 0.085 : 0.075, 0]}
+            rotation={[Math.PI / 2, 0, 0]}
+            castShadow
+            raycast={NO_HIT}
+          >
+            <torusGeometry args={[0.038, 0.011, 8, 16, Math.PI * 1.1]} />
             <meshStandardMaterial color="#fdfaf4" roughness={0.4} />
           </mesh>
         </group>
       ))}
-      <mesh position={[0.26, 0.97, -0.02]} rotation={[0, 0.3, 0]} raycast={NO_HIT}>
+
+      {/* the wooden tray and the sugar tin they all sit near */}
+      <mesh position={[0.24, 0.97, -0.04]} rotation={[0, 0.3, 0]} raycast={NO_HIT}>
         <boxGeometry args={[0.34, 0.02, 0.26]} />
         <meshStandardMaterial color={PALETTE.wood} roughness={0.7} />
       </mesh>
-      <mesh position={[-0.06, 1.02, 0.28]} castShadow raycast={NO_HIT}>
+      <mesh position={[-0.08, 1.02, 0.3]} castShadow raycast={NO_HIT}>
         <cylinderGeometry args={[0.06, 0.06, 0.13, 14]} />
         <meshStandardMaterial color="#e7dcc9" roughness={0.6} />
       </mesh>
 
       {/* two little stools */}
+      {/* Pulled in toward the table: the corner they now sit in is tighter than
+          the old one, and a stool must not overhang the plinth. */}
       {[
-        [0.95, 0.55],
-        [-0.75, 0.85],
+        [0.95, 0.45],
+        [-0.85, 0.6],
       ].map(([sx, sz], index) => (
         <group key={index} position={[sx, 0, sz]}>
           <mesh position={[0, 0.46, 0]} castShadow receiveShadow raycast={NO_HIT}>

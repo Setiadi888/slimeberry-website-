@@ -2,7 +2,7 @@
 
 import { createStore, useStore } from './store';
 import { emitLabEvent } from './labEvents';
-import { WORKERS } from './workers';
+import { WORKERS, type WorkerData } from './workers';
 
 /**
  * Small, infrequent things that make the factory feel inhabited.
@@ -35,6 +35,19 @@ export const useThought = () => useStore(thoughtStore, (state) => state);
 
 const pick = <T,>(items: readonly T[]): T => items[Math.floor(Math.random() * items.length)];
 
+/**
+ * Whose life is being simulated. The Lab has three characters and machines to
+ * rattle; SB Mart has Dilan and none, so the room swaps the cast in rather than
+ * the scheduler guessing which objects exist.
+ */
+let cast: readonly WorkerData[] = WORKERS;
+let machineEvents = true;
+
+export function setLifeCast(next: readonly WorkerData[], withMachines = true): void {
+  cast = next.length > 0 ? next : WORKERS;
+  machineEvents = withMachines;
+}
+
 const REACTION_DURATION: Record<ReactionType, number> = {
   wave: 2600,
   lookAround: 3200,
@@ -47,12 +60,16 @@ let running = 0;
 
 function fireOnce() {
   const roll = Math.random();
-  const worker = pick(WORKERS);
+  const worker = pick(cast);
 
-  if (roll < 0.2) {
+  if (machineEvents && roll < 0.06) {
+    // somebody is servicing the Gachapon — the handle turns and the capsule
+    // bed settles, as though a capsule had jammed and been freed
+    emitLabEvent('gachapon:service');
+  } else if (machineEvents && roll < 0.16) {
     // a jar in the tank shivers
     emitLabEvent('tank:splash');
-  } else if (roll < 0.42) {
+  } else if (roll < 0.34) {
     // a worker notices the camera watching and waves at it
     const reaction: WorkerReaction = {
       workerId: worker.id,
@@ -60,14 +77,14 @@ function fireOnce() {
       until: Date.now() + REACTION_DURATION.wave,
     };
     reactionHandlers.forEach((handler) => handler(reaction));
-  } else if (roll < 0.6) {
+  } else if (roll < 0.44) {
     const reaction: WorkerReaction = {
       workerId: worker.id,
       type: 'lookAround',
       until: Date.now() + REACTION_DURATION.lookAround,
     };
     reactionHandlers.forEach((handler) => handler(reaction));
-  } else if (roll < 0.74) {
+  } else if (roll < 0.55) {
     const reaction: WorkerReaction = {
       workerId: worker.id,
       type: 'coffee',
@@ -78,12 +95,13 @@ function fireOnce() {
     // a passing thought
     thoughtStore.set(() => ({ workerId: worker.id, text: pick(worker.thoughts) }));
     if (thoughtTimer) clearTimeout(thoughtTimer);
-    thoughtTimer = setTimeout(() => thoughtStore.set(() => null), 3800);
+    thoughtTimer = setTimeout(() => thoughtStore.set(() => null), 4600);
   }
 }
 
 function schedule() {
-  const delay = 7000 + Math.random() * 9000;
+  // Tightened from 7-16s: the bubbles were rare enough to be missed entirely.
+  const delay = 4200 + Math.random() * 4800;
   timer = setTimeout(() => {
     fireOnce();
     schedule();

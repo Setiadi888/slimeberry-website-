@@ -3,6 +3,7 @@
 import { createStore, useStore } from './store';
 import { PRODUCTS, type Product } from './products';
 import { recordOrder } from './dashboard';
+import { awardSbCoin } from './sbcoin';
 
 export interface CartLine {
   productId: string;
@@ -16,6 +17,12 @@ interface CartState {
   open: boolean;
   /** Set while the order-received sequence plays. */
   fulfilling: boolean;
+  /**
+   * Identifies the order currently being placed. SB COIN is minted against this
+   * id, and the wallet remembers which ids it has already paid, so no amount of
+   * refreshing or replaying can earn a second coin for the same order.
+   */
+  orderId: string | null;
 }
 
 const cartStore = createStore<CartState>({
@@ -23,7 +30,11 @@ const cartStore = createStore<CartState>({
   toast: null,
   open: false,
   fulfilling: false,
+  orderId: null,
 });
+
+let orderSeq = 0;
+const nextOrderId = () => `SB-${Date.now().toString(36)}-${(++orderSeq).toString(36)}`;
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -68,14 +79,31 @@ export function changeQuantity(productId: string, delta: number): void {
 
 /**
  * Stand-in for checkout. Plays the hand-off sequence, then empties the basket.
- * A real payment step would slot in where the timeout is.
+ * A real payment step would slot in here, and would supply the order id rather
+ * than one being minted locally.
  */
 export function placeOrder(): void {
-  cartStore.set((state) => ({ ...state, open: false, fulfilling: true }));
+  cartStore.set((state) =>
+    state.fulfilling || state.lines.length === 0
+      ? state
+      : { ...state, open: false, fulfilling: true, orderId: nextOrderId() },
+  );
 }
 
+/**
+ * The single successful-order state. SB COIN is minted here — never on add to
+ * cart, never on opening a product, never on an abandoned checkout.
+ */
 export function finishOrder(): void {
-  cartStore.set((state) => ({ ...state, fulfilling: false, lines: [], toast: null }));
+  const { orderId } = cartStore.get();
+  cartStore.set((state) => ({
+    ...state,
+    fulfilling: false,
+    lines: [],
+    toast: null,
+    orderId: null,
+  }));
+  awardSbCoin(orderId);
 }
 
 export const useCartOpen = () => useStore(cartStore, (state) => state.open);

@@ -6,8 +6,9 @@ import { addToCart, useCartQuantity } from '@/lib/cart';
 import { emitProductPulse } from '@/lib/labEvents';
 import { describe } from '@/lib/describe';
 import { getProduct } from '@/lib/products';
-import { selectEntity, useSelected, type EntityRef } from '@/lib/interaction';
+import { selectEntity, setView, useSelected, type EntityRef } from '@/lib/interaction';
 import { JOURNEY, traceProduct, useJourney } from '@/lib/journey';
+import { setGachaponOpen } from '@/lib/sbcoin';
 import { AnchoredCard } from './AnchoredCard';
 import { MetricBars, ProgressBar, Stars, TaskRow } from './CardBody';
 
@@ -72,7 +73,14 @@ export function DetailPanel() {
   if (!shown || !content) return null;
 
   const handleCta = () => {
-    if (!product || !content.cta) return;
+    if (!content.cta) return;
+    if (content.cta.action === 'gachapon') {
+      selectEntity(null);
+      setView('gachapon');
+      setGachaponOpen(true);
+      return;
+    }
+    if (!product) return;
     if (content.cta.action === 'add') {
       addToCart(product);
       emitProductPulse(product.id);
@@ -183,7 +191,7 @@ export function DetailPanel() {
           </div>
         )}
 
-        {content.cta && product && (
+        {content.cta && (product || content.cta.action === 'gachapon') && (
           <button
             type="button"
             onClick={handleCta}

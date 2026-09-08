@@ -92,35 +92,21 @@ export function LabEnvironment() {
         </mesh>
       </group>
 
-      {/* wall sign: a slime drop instead of 3D text, so nothing has to be fetched */}
-      <group position={[4.6, 3.7, -5.34]}>
-        <mesh castShadow>
-          <circleGeometry args={[0.62, 32]} />
-          <meshStandardMaterial color={PALETTE.berry} roughness={0.55} />
-        </mesh>
-        <mesh position={[0, 0, 0.02]}>
-          <circleGeometry args={[0.44, 32]} />
-          <meshStandardMaterial color={PALETTE.shell} roughness={0.6} />
-        </mesh>
-        <mesh position={[0, -0.04, 0.04]} scale={[0.5, 0.62, 0.5]}>
-          <sphereGeometry args={[0.36, 20, 16]} />
-          <meshStandardMaterial color={PALETTE.berry} roughness={0.35} metalness={0.05} />
-        </mesh>
-      </group>
-
-      {/* rug */}
-      <mesh position={[-1.6, 0.15, 1.4]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <circleGeometry args={[2.4, 40]} />
+      {/* Rug. Pulled back from its old spot so the belt, which now runs the
+          full width of the floor, does not pass over it. */}
+      <mesh position={[-2.0, 0.15, 0.35]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <circleGeometry args={[2.0, 40]} />
         <meshStandardMaterial color="#ecdfe0" roughness={0.95} />
       </mesh>
-      <mesh position={[-1.6, 0.16, 1.4]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.85, 2.02, 40]} />
+      <mesh position={[-2.0, 0.16, 0.35]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.52, 1.68, 40]} />
         <meshStandardMaterial color={PALETTE.berry} roughness={0.95} opacity={0.5} transparent />
       </mesh>
 
       <PottedPlant position={[-7.1, 0.13, -3.6]} />
-      <PottedPlant position={[7.1, 0.13, 4.3]} scale={0.78} phase={2.4} />
-      <PottedPlant position={[-7.15, 0.13, 4.4]} scale={0.62} phase={4.1} />
+      <PottedPlant position={[7.2, 0.13, -4.3]} scale={0.82} phase={2.4} variant="succulent" />
+      {/* Tucked into the front corner, clear of the belt's new lane. */}
+      <PottedPlant position={[-7.1, 0.13, 5.05]} scale={0.7} phase={4.1} variant="succulent" />
 
       <Crate position={[-1.9, 0.13, -4.9]} rotation={0.3} />
       <Crate position={[-1.15, 0.13, -4.75]} rotation={-0.2} scale={0.8} />
@@ -128,27 +114,36 @@ export function LabEnvironment() {
   );
 }
 
+/**
+ * Desert planting, in two forms: a ribbed columnar cactus with arms, and a
+ * rosette succulent. Both are far better suited to a factory than a leafy
+ * houseplant — nobody in here has time to water anything — and both are cheaper
+ * than the leaf cluster they replace.
+ */
 function PottedPlant({
   position,
   scale = 1,
   phase = 0,
+  variant = 'cactus',
 }: {
   position: [number, number, number];
   scale?: number;
   phase?: number;
+  variant?: 'cactus' | 'succulent';
 }) {
-  const leavesRef = useRef<THREE.Group>(null);
+  const bodyRef = useRef<THREE.Group>(null);
 
   // barely-there sway; enough that the eye registers the room as not frozen
   useFrame(({ clock }) => {
-    if (!leavesRef.current) return;
+    if (!bodyRef.current) return;
     const t = clock.getElapsedTime() + phase;
-    leavesRef.current.rotation.z = Math.sin(t * 0.55) * 0.045;
-    leavesRef.current.rotation.x = Math.cos(t * 0.4) * 0.03;
+    bodyRef.current.rotation.z = Math.sin(t * 0.45) * 0.022;
+    bodyRef.current.rotation.x = Math.cos(t * 0.33) * 0.016;
   });
 
   return (
     <group position={position} scale={scale}>
+      {/* terracotta pot */}
       <mesh castShadow receiveShadow position={[0, 0.3, 0]}>
         <cylinderGeometry args={[0.34, 0.26, 0.6, 20]} />
         <meshStandardMaterial color="#dba98c" roughness={0.85} />
@@ -157,24 +152,88 @@ function PottedPlant({
         <cylinderGeometry args={[0.37, 0.37, 0.1, 20]} />
         <meshStandardMaterial color="#c9917a" roughness={0.8} />
       </mesh>
-      <group ref={leavesRef} position={[0, 0.62, 0]}>
-      {[
-        [0, 0.55, 0, 0],
-        [0.22, 0.42, -0.5, 0.15],
-        [-0.2, 0.46, 0.45, -0.12],
-        [0.05, 0.5, 0.9, -0.3],
-      ].map(([x, h, rot, tilt], index) => (
-        <mesh
-          key={index}
-          castShadow
-          position={[x, 0.13 + h * 0.45, tilt]}
-          rotation={[tilt, rot, x * 0.9]}
-          scale={[0.2, h, 0.14]}
-        >
-          <sphereGeometry args={[1, 14, 12]} />
-          <meshStandardMaterial color={index % 2 ? '#8fbc6d' : PALETTE.mint} roughness={0.7} />
-        </mesh>
-      ))}
+      {/* grit on top, so nothing floats out of bare soil */}
+      <mesh position={[0, 0.66, 0]}>
+        <cylinderGeometry args={[0.33, 0.33, 0.03, 20]} />
+        <meshStandardMaterial color="#cbbfae" roughness={0.95} />
+      </mesh>
+
+      <group ref={bodyRef} position={[0, 0.67, 0]}>
+        {variant === 'cactus' ? (
+          <>
+            {/* trunk, and two arms at different heights */}
+            <mesh position={[0, 0.5, 0]} castShadow>
+              <capsuleGeometry args={[0.17, 0.72, 6, 16]} />
+              <meshStandardMaterial color="#7fa860" roughness={0.78} />
+            </mesh>
+            {[
+              [-1, 0.52, 0.3],
+              [1, 0.74, 0.24],
+            ].map(([side, height, arm], index) => (
+              <group key={index} position={[(side as number) * 0.16, height as number, 0]}>
+                <mesh
+                  position={[(side as number) * 0.1, 0, 0]}
+                  rotation={[0, 0, (side as number) * -1.15]}
+                  castShadow
+                >
+                  <capsuleGeometry args={[0.085, arm as number, 5, 12]} />
+                  <meshStandardMaterial color="#7fa860" roughness={0.78} />
+                </mesh>
+                <mesh position={[(side as number) * 0.24, (arm as number) * 0.5 + 0.06, 0]} castShadow>
+                  <capsuleGeometry args={[0.085, 0.26, 5, 12]} />
+                  <meshStandardMaterial color="#7fa860" roughness={0.78} />
+                </mesh>
+              </group>
+            ))}
+            {/* ribs — thin strips are all it takes to read as a cactus */}
+            {[0, 1, 2, 3].map((index) => {
+              const angle = (index / 4) * Math.PI * 2;
+              return (
+                <mesh
+                  key={angle}
+                  position={[Math.cos(angle) * 0.16, 0.5, Math.sin(angle) * 0.16]}
+                >
+                  <capsuleGeometry args={[0.016, 0.66, 4, 6]} />
+                  <meshStandardMaterial color="#93bb73" roughness={0.8} />
+                </mesh>
+              );
+            })}
+            {/* one flower on top, because a cactus in bloom is a nicer thing */}
+            <mesh position={[0, 0.96, 0]} castShadow>
+              <sphereGeometry args={[0.075, 12, 10]} />
+              <meshStandardMaterial color={PALETTE.berry} roughness={0.6} />
+            </mesh>
+          </>
+        ) : (
+          <>
+            {/* rosette: three rings of leaves, tighter and steeper as they rise */}
+            {[
+              { count: 7, radius: 0.3, height: 0.06, tilt: 1.15, size: 0.2, tint: '#7fa860' },
+              { count: 6, radius: 0.19, height: 0.17, tilt: 0.8, size: 0.16, tint: '#93bb73' },
+              { count: 5, radius: 0.09, height: 0.26, tilt: 0.42, size: 0.12, tint: '#a8cf87' },
+            ].map((ring, ringIndex) =>
+              Array.from({ length: ring.count }, (_, index) => {
+                const angle = (index / ring.count) * Math.PI * 2 + ringIndex * 0.5;
+                return (
+                  <mesh
+                    key={`${ringIndex}-${index}`}
+                    position={[
+                      Math.cos(angle) * ring.radius,
+                      ring.height,
+                      Math.sin(angle) * ring.radius,
+                    ]}
+                    rotation={[Math.cos(angle) * ring.tilt, -angle, Math.sin(angle) * ring.tilt]}
+                    scale={[0.5, 0.32, 1]}
+                    castShadow
+                  >
+                    <sphereGeometry args={[ring.size, 10, 8]} />
+                    <meshStandardMaterial color={ring.tint} roughness={0.72} />
+                  </mesh>
+                );
+              }),
+            )}
+          </>
+        )}
       </group>
     </group>
   );

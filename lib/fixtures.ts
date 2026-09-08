@@ -45,8 +45,8 @@ export const STATIONS: StationFixture[] = [
   {
     id: 'packaging',
     name: 'Packaging',
-    step: 'Step 09 of 09',
-    blurb: 'Labelled jars are boxed at the end of the line and stacked for the finished-goods shelf.',
+    step: 'Step 07 of 07',
+    blurb: 'Labelled jars run into the housing at the end of the belt, are boxed, and go straight out to dispatch.',
     stats: [
       { label: 'Jar size', value: '150 ml' },
       { label: 'Filled today', value: '46' },
@@ -59,11 +59,12 @@ export const STATIONS: StationFixture[] = [
   {
     id: 'conveyor',
     name: 'Transfer Line',
-    step: 'Step 06 of 09',
-    blurb: 'Mixed slime rides the belt through quality control, filling and labelling.',
+    step: 'Step 04 of 07',
+    blurb:
+      'Jars push out through the discharge hood in the west wall and ride the belt the length of the floor, through quality control, filling and labelling.',
     stats: [
-      { label: 'Travel', value: '34 s end to end' },
-      { label: 'On the belt', value: '8 jars' },
+      { label: 'Travel', value: '43 s end to end' },
+      { label: 'On the belt', value: '10 jars' },
     ],
     accent: '#6c70a8',
     anchorHeight: 1.5,
@@ -71,7 +72,7 @@ export const STATIONS: StationFixture[] = [
   {
     id: 'qc',
     name: 'Quality Control',
-    step: 'Step 06 of 09',
+    step: 'Step 04 of 07',
     blurb: 'Every batch passes the scanner arch. Caca checks texture and stretch by hand before it is filled.',
     stats: [
       { label: 'Checked today', value: '21' },
@@ -86,7 +87,7 @@ export const STATIONS: StationFixture[] = [
     id: 'dispatch',
     name: 'Dispatch',
     step: 'Ready to ship',
-    blurb: 'Approved jars are boxed and stacked here, waiting for the afternoon courier.',
+    blurb: 'Boxed orders come straight off packaging and stack here, waiting for the afternoon courier.',
     stats: [
       { label: 'Packed today', value: '18' },
       { label: 'Next pickup', value: '16:30' },
@@ -100,7 +101,7 @@ STATIONS.push(
   {
     id: 'greenhouse',
     name: 'Greenhouse',
-    step: 'Step 01 of 09',
+    step: 'Step 01 of 07',
     blurb: 'Mint, basil, strawberry, blueberry and chamomile, grown on site and picked the morning they are used.',
     stats: [
       { label: 'Beds', value: '5' },
@@ -110,34 +111,23 @@ STATIONS.push(
     anchorHeight: 2.7,
   },
   {
-    id: 'ingredients',
-    name: 'Ingredient Store',
-    step: 'Step 02 of 09',
-    blurb: 'Bases, pigments and essences held at temperature until a batch calls for them.',
+    id: 'gachapon',
+    name: 'Slimeberry Gachapon',
+    step: 'Rewards',
+    blurb:
+      'Every order earns one SB COIN. Feed it in, turn the handle, and the machine drops you a capsule with something small and strange inside.',
     stats: [
-      { label: 'Tanks', value: '6' },
-      { label: 'Batches held', value: '12' },
+      { label: 'Cost', value: '1 SB COIN' },
+      { label: 'Capsules loaded', value: '212' },
+      { label: 'Rarest pull', value: 'Golden Slimeberry' },
     ],
-    accent: '#4e9fbe',
-    anchorHeight: 2.4,
-  },
-  {
-    id: 'colour',
-    name: 'Colour Lab',
-    step: 'Step 04 of 09',
-    blurb: 'Pigments are matched by eye against the swatch board before a batch is tinted.',
-    stats: [
-      { label: 'Pigments', value: '6' },
-      { label: 'Matched today', value: '9' },
-    ],
-    productId: 'strawberry',
-    accent: '#7f6dc0',
-    anchorHeight: 2.2,
+    accent: '#e4738f',
+    anchorHeight: 3.3,
   },
   {
     id: 'texture',
     name: 'Texture Lab',
-    step: 'Step 05 of 09',
+    step: 'Step 03 of 07',
     blurb: 'A press checks stretch and rebound. Too stiff goes back to the mixer; too loose is held to cure.',
     stats: [
       { label: 'Target stretch', value: '9.0+' },
@@ -150,7 +140,7 @@ STATIONS.push(
   {
     id: 'filling',
     name: 'Filling',
-    step: 'Step 07 of 09',
+    step: 'Step 05 of 07',
     blurb: 'Approved slime is dosed into jars, 150 ml at a time, straight off the belt.',
     stats: [
       { label: 'Jar size', value: '150 ml' },
@@ -163,7 +153,7 @@ STATIONS.push(
   {
     id: 'labelling',
     name: 'Labelling',
-    step: 'Step 08 of 09',
+    step: 'Step 06 of 07',
     blurb: 'Each jar gets its batch label as it passes — the same number printed on the lid you receive.',
     stats: [
       { label: 'Roll', value: 'Batch SB-024' },
@@ -173,17 +163,72 @@ STATIONS.push(
     accent: '#c98f3a',
     anchorHeight: 2.1,
   },
+);
+
+/**
+ * SB Mart, plus the two doorways that join it to the Lab. They share the
+ * station shape so the hover card and detail panel need no new branch — a
+ * doorway is just a station whose blurb tells you where it goes.
+ */
+STATIONS.push(
   {
-    id: 'finished',
-    name: 'Finished Goods',
-    step: 'Ready to ship',
-    blurb: 'Sealed, labelled and shelved. Orders are picked from here onto the dispatch trolley.',
+    id: 'martdoor',
+    name: 'SB Mart',
+    step: 'Through the door',
+    blurb: 'The little shop behind the factory wall. Same jars, colder, with someone at the till.',
     stats: [
-      { label: 'On the shelf', value: '96 jars' },
-      { label: 'Picked today', value: '24' },
+      { label: 'Open', value: 'Every day' },
+      { label: 'Cashier', value: 'Dilan' },
     ],
-    accent: '#5aa84c',
-    anchorHeight: 2.6,
+    accent: '#4e9fbe',
+    anchorHeight: 2.9,
+  },
+  {
+    id: 'labdoor',
+    name: 'Slimeberry Lab',
+    step: 'Back through the door',
+    blurb: 'Back out onto the factory floor — the line, the greenhouse and the Gachapon.',
+    stats: [{ label: 'Leads to', value: 'The factory' }],
+    accent: '#e4738f',
+    anchorHeight: 2.9,
+  },
+  {
+    id: 'vinyl',
+    name: 'The Record Cabinet',
+    step: 'SB Mart',
+    blurb:
+      'Dilan built the shelves himself. Tap the turntable and the shop stereo comes on — tap it again and the room goes quiet.',
+    stats: [
+      { label: 'Speaker', value: 'Built in' },
+      { label: 'Now playing', value: 'Side A' },
+    ],
+    accent: '#c98f3a',
+    anchorHeight: 2.8,
+  },
+  {
+    id: 'martshelf',
+    name: 'Signature Wall',
+    step: 'SB Mart',
+    blurb: 'The four full-size jars, faced up and rotated so the freshest batch is always at the front.',
+    stats: [
+      { label: 'Lines', value: '4' },
+      { label: 'Size', value: '150 ml' },
+    ],
+    productId: 'strawberry',
+    accent: '#d94f75',
+    anchorHeight: 2.5,
+  },
+  {
+    id: 'checkout',
+    name: 'Checkout',
+    step: 'SB Mart',
+    blurb: "Dilan's counter. The register is older than the factory and he refuses to replace it.",
+    stats: [
+      { label: 'Cashier', value: 'Dilan' },
+      { label: 'Register', value: 'SB-MART-01' },
+    ],
+    accent: '#c98f3a',
+    anchorHeight: 1.9,
   },
 );
 

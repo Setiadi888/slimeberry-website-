@@ -18,7 +18,6 @@ export interface JourneyStep {
 export const JOURNEY: JourneyStep[] = [
   { id: 'grow', label: 'Grown', labelId: 'greenhouse' },
   { id: 'mix', label: 'Mixed', labelId: 'mixing' },
-  { id: 'colour', label: 'Tinted', labelId: 'colour' },
   { id: 'texture', label: 'Tested', labelId: 'texture' },
   { id: 'qc', label: 'Checked', labelId: 'qc' },
   { id: 'fill', label: 'Filled', labelId: 'filling' },

@@ -48,6 +48,34 @@ export const ABOUT_CONTENT: AboutBlock[] = [
     text: 'Welcome to Slimeberry, where an imaginary factory makes room for real play.',
   },
 
+  { type: 'title', text: 'Made for the way you play.' },
+  {
+    type: 'para',
+    text: 'Slimeberry has two rooms, and they were built for different moods.',
+  },
+  {
+    type: 'para',
+    text: 'The Lab is the big one — a whole factory floor to wander, with a belt to follow, a greenhouse to peer into, and three people who will wave back if you watch them long enough. It likes room. On a desktop you get the whole diorama at once, and space to get properly lost in it.',
+  },
+  { type: 'lead', text: 'SB Mart travels lighter.' },
+  {
+    type: 'para',
+    text: 'The little shop behind the factory wall was built for a phone held in one hand. Fewer things, closer shelves, everything within reach — made for browsing on a train, in a queue, or in the four spare minutes before something else begins.',
+  },
+  {
+    type: 'para',
+    text: 'Same jars, same basket, the same SB COIN in your pocket. Only the room changes.',
+  },
+  { type: 'lead', text: 'And yes, you can take the Lab with you.' },
+  {
+    type: 'lines',
+    text: ['Turn your phone sideways.', 'The Lab is happiest in landscape.'],
+  },
+  {
+    type: 'para',
+    text: 'Two rooms, one world. Walk into whichever one suits the day.',
+  },
+
   { type: 'title', text: 'About Us' },
   { type: 'subtitle', text: 'A little play for grown-up days' },
   {

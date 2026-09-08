@@ -5,7 +5,7 @@
  * refs through the tree — a worker pressing a button starts the mixer, and the
  * cart tells a jar on the shelf to bounce.
  */
-export type LabEvent = 'machine:start' | 'tank:splash';
+export type LabEvent = 'machine:start' | 'tank:splash' | 'gachapon:service';
 
 type Handler = () => void;
 

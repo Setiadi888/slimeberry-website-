@@ -42,7 +42,7 @@ export interface CardContent {
    * factory information, not shopping surfaces. Products are discovered through
    * the tanks and the display shelf instead.
    */
-  cta?: { label: string; action: 'add' | 'view' };
+  cta?: { label: string; action: 'add' | 'view' | 'gachapon' };
   /** How high above the anchor the card should float, in world units. */
   anchorHeight: number;
 }
@@ -101,16 +101,21 @@ export function describe(ref: EntityRef | null): CardContent | null {
     const station = getStation(ref.id);
     if (!station) return null;
     const product = station.productId ? getProduct(station.productId) : null;
+    const isGachapon = station.id === 'gachapon';
     return {
       eyebrow: station.step,
       title: station.name,
-      emoji: '🏭',
+      emoji: isGachapon ? '🪙' : '🏭',
       line: station.blurb,
       task: product ? { emoji: product.emoji, label: product.name } : undefined,
       stats: station.stats,
       accent: station.accent,
       productId: station.productId,
-      cta: product ? { label: 'See the slime', action: 'view' } : undefined,
+      cta: isGachapon
+        ? { label: 'Open the Gachapon', action: 'gachapon' }
+        : product
+          ? { label: 'See the slime', action: 'view' }
+          : undefined,
       anchorHeight: station.anchorHeight,
     };
   }

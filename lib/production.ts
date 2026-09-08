@@ -13,13 +13,13 @@ export interface ProductionStage {
 }
 
 /**
- * Mirrors the physical line. The previous list ran ...QC then PACK, which
- * contradicted the floor plan now that packaging feeds the belt into QC.
+ * Mirrors the physical line: the belt carries slime out of the wall discharge,
+ * through QC, filling and labelling, and packaging closes it on the right.
  */
 export const STAGES: ProductionStage[] = [
   { id: 'grow', index: 1, label: 'Grow', view: 'greenhouse' },
   { id: 'mix', index: 2, label: 'Mix', view: 'mixing' },
-  { id: 'colour', index: 3, label: 'Colour', view: 'colour' },
+  { id: 'texture', index: 3, label: 'Texture', view: 'texture' },
   { id: 'qc', index: 4, label: 'QC', view: 'qc' },
   { id: 'pack', index: 5, label: 'Pack', view: 'packing' },
 ];
