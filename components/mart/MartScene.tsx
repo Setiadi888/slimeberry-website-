@@ -6,7 +6,7 @@ import { ContactShadows, OrbitControls, RoundedBox } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import gsap from 'gsap';
-import { PALETTE } from '@/lib/palette';
+import { FINISH, FINISH_PBR } from '@/lib/storeFinish';
 import {
   MART,
   MART_FACE_X,
@@ -33,13 +33,13 @@ import { Doorway } from '@/components/lab/Doorway';
 import { Worker } from '@/components/lab/Worker';
 import { KEEPER_MODELS, StaffModel } from '@/components/lab/StaffModel';
 import { SeriesIsland } from './SeriesIsland';
+import { MomoInstallation } from './MomoInstallation';
 import { LabLighting } from '@/components/lab/LabLighting';
 import { BotanicalPot } from '@/components/lab/BotanicalPlants';
 import { labCast, martCashier, martFloorCashier } from '@/lib/workers';
 import { readCrew, useCrew } from '@/lib/shift';
 import { setLifeCast, setLifeCat } from '@/lib/factoryLife';
 import {
-  BlobCarpet,
   Checkout,
   Monstera,
   ShopCat,
@@ -47,7 +47,6 @@ import {
   ShoppingTrolley,
   SignatureWall,
   VinylCabinet,
-  WestWallCabinets,
 } from './MartFixtures';
 import { SecurityCamera } from '@/components/lab/SecurityCamera';
 
@@ -58,6 +57,7 @@ const PRESET_FOR: Record<string, MartPreset> = {
   checkout: 'counter',
   vinyl: 'vinyl',
   seriesisland: 'series',
+  momo: 'momo',
 };
 
 function useMartSignTexture(flower: HTMLImageElement | null): THREE.CanvasTexture | null {
@@ -69,11 +69,11 @@ function useMartSignTexture(flower: HTMLImageElement | null): THREE.CanvasTextur
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    ctx.fillStyle = '#fbf6ee';
+    ctx.fillStyle = FINISH.stone;
     ctx.fillRect(0, 0, 640, 200);
-    ctx.fillStyle = '#e4738f';
-    ctx.fillRect(0, 0, 640, 14);
-    ctx.fillRect(0, 186, 640, 14);
+    ctx.fillStyle = FINISH.black;
+    ctx.fillRect(0, 0, 640, 10);
+    ctx.fillRect(0, 190, 640, 10);
 
     // the SB is the flower mark itself, with MART set beside it
     // centred vertically now the tagline underneath it is gone
@@ -81,7 +81,7 @@ function useMartSignTexture(flower: HTMLImageElement | null): THREE.CanvasTextur
     else drawFlowerFallback(ctx, 196, 100, 66, BRAND.green);
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#e4738f';
+    ctx.fillStyle = FINISH.black;
     ctx.font = 'bold 96px ui-rounded, system-ui, sans-serif';
     ctx.fillText('MART', 282, 132);
 
@@ -103,7 +103,7 @@ function MartRoom() {
     <group>
       <mesh position={[0, -0.71, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_HIT}>
         <circleGeometry args={[16, 48]} />
-        <meshStandardMaterial color="#e2d4c0" roughness={0.95} />
+        <meshStandardMaterial color="#d9dad8" roughness={0.95} />
       </mesh>
       <ContactShadows
         position={[0, -0.68, 0]}
@@ -113,7 +113,7 @@ function MartRoom() {
         opacity={0.32}
         resolution={512}
         frames={1}
-        color="#8a7358"
+        color="#777b7d"
       />
 
       {/* plinth + floor */}
@@ -126,7 +126,7 @@ function MartRoom() {
         castShadow
         raycast={NO_HIT}
       >
-        <meshStandardMaterial color={PALETTE.floorTrim} roughness={0.85} />
+        <meshStandardMaterial color={FINISH.base} roughness={0.8} />
       </RoundedBox>
       <RoundedBox
         args={[MART.width, 0.22, MART.depth]}
@@ -136,13 +136,19 @@ function MartRoom() {
         receiveShadow
         raycast={NO_HIT}
       >
-        <meshStandardMaterial color="#f0e6d6" roughness={0.8} />
+        <meshStandardMaterial color={FINISH.concrete} {...FINISH_PBR.concrete} />
       </RoundedBox>
-      {/* checkerboard hint — a shop floor, not a factory floor */}
-      <mesh position={[0, 0.14, 0.3]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_HIT}>
-        <planeGeometry args={[MART.width - 1.4, MART.depth - 1.6]} />
-        <meshStandardMaterial color="#e7dccb" roughness={0.9} />
+      {/* Flush inset concrete field: no checkerboard or rug competing with Momo. */}
+      <mesh position={[0, 0.132, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow raycast={NO_HIT}>
+        <planeGeometry args={[MART.width - 0.55, MART.depth - 0.55]} />
+        <meshStandardMaterial color={FINISH.concrete} {...FINISH_PBR.concrete} />
       </mesh>
+      {[-3.6, 3.6].map((x) => (
+        <mesh key={x} position={[x, 0.135, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={NO_HIT}>
+          <planeGeometry args={[0.014, MART.depth - 0.55]} />
+          <meshStandardMaterial color={FINISH.concreteSeam} roughness={0.75} />
+        </mesh>
+      ))}
 
       {/* back wall */}
       <RoundedBox
@@ -154,11 +160,11 @@ function MartRoom() {
         castShadow
         raycast={NO_HIT}
       >
-        <meshStandardMaterial color="#f7ece9" roughness={0.92} />
+        <meshStandardMaterial color={FINISH.wall} roughness={0.9} />
       </RoundedBox>
       <mesh position={[0, 0.62, MART_FACE_Z + 0.02]} raycast={NO_HIT}>
         <boxGeometry args={[MART.width, 0.42, 0.06]} />
-        <meshStandardMaterial color={PALETTE.wallTrim} roughness={0.85} />
+        <meshStandardMaterial color={FINISH.stone} roughness={0.75} />
       </mesh>
 
       {/* left wall */}
@@ -171,11 +177,11 @@ function MartRoom() {
         castShadow
         raycast={NO_HIT}
       >
-        <meshStandardMaterial color="#f7ece9" roughness={0.92} />
+        <meshStandardMaterial color={FINISH.wall} roughness={0.9} />
       </RoundedBox>
       <mesh position={[MART_FACE_X + 0.02, 0.62, 0]} raycast={NO_HIT}>
         <boxGeometry args={[0.06, 0.42, MART.depth]} />
-        <meshStandardMaterial color={PALETTE.wallTrim} roughness={0.85} />
+        <meshStandardMaterial color={FINISH.stone} roughness={0.75} />
       </mesh>
 
       {/* fascia */}
@@ -316,7 +322,7 @@ function MartCamera() {
       rotateSpeed={0.4}
       zoomSpeed={0.6}
       minDistance={4.0}
-      maxDistance={32}
+      maxDistance={44}
       minPolarAngle={0.6}
       maxPolarAngle={1.4}
       minAzimuthAngle={0.05}
@@ -346,7 +352,7 @@ function ViewportBridge() {
 /**
  * SB Mart.
  *
- * Half the Lab's floor area and a small fraction of its object count: no belt,
+ * Roughly the Lab's floor area but a fraction of its object count: no belt,
  * no production line, one character instead of three, and no particle system.
  * Everything a shopper needs — jars, chiller, island, counter — is a fixture
  * they can tap, and every product uses the very same `Product` component the
@@ -400,6 +406,7 @@ export function MartScene() {
       <SignatureWall />
       {/* all three lines, on one island */}
       <SeriesIsland />
+      <Suspense fallback={null}><MomoInstallation /></Suspense>
       <VinylCabinet />
       <Checkout />
       {/*
@@ -422,20 +429,18 @@ export function MartScene() {
         />
       </Suspense>
 
-      <WestWallCabinets />
-      {/* the same camera, in the shop's own corner */}
-      <SecurityCamera position={[-4.5, 3.6, -4.1]} scale={1.15} />
-      <BlobCarpet />
+      {/* The spare west-wall cabinets and the center rug made way for the installation. */}
+      <SecurityCamera position={[-6.25, 4.45, -5.55]} scale={1.15} />
       <ShoppingTrolley />
       <Monstera />
-      <BotanicalPot position={[-4.1, 0.14, -1.6]} kind="fern" scale={0.75} color="#d1d9be" />
-      <BotanicalPot position={[4.35, 0.14, 2.8]} kind="monstera" scale={0.8} color="#e6c6c0" />
-      <BotanicalPot position={[-3.85, 0.14, 3.7]} kind="fern" scale={0.8} />
+      <BotanicalPot position={[-6.0, 0.14, 2.4]} kind="fern" scale={0.75} color="#c1c4bc" />
+      <BotanicalPot position={[5.95, 0.14, 2.25]} kind="monstera" scale={0.8} color="#d6d2ca" />
+      <BotanicalPot position={[-5.65, 0.14, 5.0]} kind="fern" scale={0.8} />
       {/* the shop has gone green: a monstera by the till end of the east wall, a
           fern in the front corner, and one beside the door through to the Lab */}
-      <BotanicalPot position={[4.4, 0.14, -0.2]} kind="monstera" scale={0.85} color="#dcc8b0" />
-      <BotanicalPot position={[4.4, 0.14, 3.9]} kind="fern" scale={0.72} color="#e6c6c0" />
-      <BotanicalPot position={[-3.4, 0.14, -3.9]} kind="monstera" scale={0.7} color="#d1d9be" />
+      <BotanicalPot position={[5.9, 0.14, -1.55]} kind="monstera" scale={0.85} color="#cecac2" />
+      <BotanicalPot position={[5.9, 0.14, 5.15]} kind="fern" scale={0.72} color="#d6d2ca" />
+      <BotanicalPot position={[-5.6, 0.14, -3.0]} kind="monstera" scale={0.7} color="#c1c4bc" />
       <ShopCat />
       <ShopDressing />
 

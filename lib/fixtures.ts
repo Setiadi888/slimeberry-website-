@@ -179,6 +179,18 @@ STATIONS.push(
  */
 STATIONS.push(
   {
+    id: 'momo',
+    name: 'Momo',
+    step: 'The heart of SB Mart',
+    blurb: 'Our little mascot, made larger than life. The shop has been arranged around this quiet sculpture; give Momo a tap and you may get a wave back.',
+    stats: [
+      { label: 'At home', value: 'The middle of the Mart' },
+      { label: 'Mood', value: 'A little curious' },
+    ],
+    accent: '#9bbf49',
+    anchorHeight: 2.1,
+  },
+  {
     id: 'staffdoor',
     name: 'Staff Entrance',
     step: 'Shift change',
@@ -243,7 +255,7 @@ STATIONS.push(
     name: 'The Series Island',
     step: 'SB Mart',
     blurb:
-      'All three lines on one fixture, in their printed boxes: boba series, fruit series and dessert world, left to right, each bay in its own colour under its own header. They had a table, a flight of steps and a podium between them until somebody pointed out that the shop is not that big.',
+      'All three lines on one fixture, in their printed boxes: boba series, fruit series and dessert world, left to right. Each bay keeps its own colour under its own header, even in the larger gallery room.',
     stats: [
       { label: 'Lines', value: '3' },
       { label: 'Boxes', value: '16' },
@@ -278,7 +290,7 @@ STATIONS.push(
     id: 'oyen',
     name: 'Oyen',
     step: 'Shop Cat',
-    blurb: 'Came in through the delivery door two winters ago and has not left. Sleeps on the rug, supervises from the counter, answers to nothing.',
+    blurb: 'Came in through the delivery door two winters ago and has not left. Sleeps on Momo’s plinth, supervises from the counter, answers to nothing.',
     stats: [
       { label: 'Post', value: 'Wherever it is warm' },
       { label: 'Duties', value: 'None agreed' },

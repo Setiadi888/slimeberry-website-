@@ -774,37 +774,38 @@ const SHOP_BEAT: RoamPlan = {
   /*
     A shopkeeper alone in a shop does not stand still: most of a shift is out on
     the floor facing up shelves, looking in on the stock corner and wheeling back
-    the trolley somebody abandoned. The corridor was walked against the fixtures'
-    footprints with the 0.28 body radius; which end of it they head for is a
+    the trolley somebody abandoned. Which end of the corridor they head for is a
     throw each time.
+
+    Laid out fresh when the floor doubled and momo took the middle of it: out from
+    behind the counter, along the front of the wall run, across the back of the
+    room behind the installation, down the west side and back along the front of
+    the floor to the trolley. Measured leg by leg against every fixture with the
+    0.28 body radius — the tightest leg clears by 0.45, threading the gap between
+    momo's plinth and the series island. The first leg starts at the till and the
+    last ends at the trolley; both are meant to.
   */
   lane: [
-    [3.6, -3.0],
-    [2.1, -3.15],
-    [1.0, -2.9],
-    [-0.6, -1.8],
-    [-2.6, -0.4],
-    [-1.2, 1.3],
-    [1.2, 1.1],
-    /*
-      The front loop used to cut straight across the middle of the floor, which
-      is where the series island now stands. It goes round the east end instead:
-      along the front of the island, out past the trolley and back in behind its
-      handle. Re-measured leg by leg against every fixture with the 0.28 body
-      radius — the tightest is 0.36 off the trolley, and the last leg is the
-      trolley errand itself, which is meant to end up at it.
-    */
-    [2.4, 1.1],
-    [3.7, 2.0],
-    [3.4, 3.0],
-    [2.17, 3.01],
+    [5.0, -4.8],
+    [3.3, -4.8],
+    [2.4, -4.7],
+    [0.0, -3.3],
+    [-3.2, -2.6],
+    [-4.5, -1.5],
+    [-3.6, 1.4],
+    [-1.6, 1.95],
+    [2.5, 1.95],
+    [4.7, 2.4],
+    [4.7, 4.0],
+    [3.25, 3.96],
   ],
   stops: [
-    { id: 'till', at: [3.6, -3.0], node: 0, facing: 0, dwell: [5, 9], action: 'work', weight: 3 },
-    { id: 'shelf', at: [1.0, -2.9], node: 2, facing: Math.PI, dwell: [4, 6.5], action: 'inspect', weight: 2 },
-    { id: 'stock', at: [-2.6, -0.4], node: 4, facing: 0.4, dwell: [3.5, 5.5], action: 'idle' },
-    { id: 'floor', at: [1.2, 1.1], node: 6, dwell: [2, 4], action: 'idle' },
-    { id: 'trolley', at: [2.17, 3.01], node: 10, facing: 2.59, dwell: [2.5, 4], action: 'work', weight: 2 },
+    { id: 'till', at: [5.0, -4.8], node: 0, facing: 0, dwell: [5, 9], action: 'work', weight: 3 },
+    { id: 'shelf', at: [2.4, -4.7], node: 2, facing: Math.PI, dwell: [4, 6.5], action: 'inspect', weight: 2 },
+    { id: 'stock', at: [-4.5, -1.5], node: 5, facing: 0.4, dwell: [3.5, 5.5], action: 'idle' },
+    /* a pause at the installation's shoulder, looking up at it */
+    { id: 'floor', at: [2.5, 1.95], node: 8, facing: -2.36, dwell: [2.5, 4.5], action: 'idle' },
+    { id: 'trolley', at: [3.25, 3.96], node: 11, facing: 2.59, dwell: [2.5, 4], action: 'work', weight: 2 },
   ],
 };
 
@@ -812,34 +813,32 @@ const SHOP_BEAT: RoamPlan = {
  * The second keeper's beat: the front and the west side of the floor.
  *
  * A shop with two people in it splits the room rather than doubling up — this
- * one has the door, the spare cabinets and the front of the floor, while the
- * till, the back wall and the stock corner stay with whoever is on the register.
- * The corridor was measured the same way every other one here was, against the
- * fixtures' own footprints with the 0.28 body radius: the tightest leg clears by
- * 0.45, and no stop comes within 0.96 of one of the register keeper's or the
- * cat's, so the three of them share a floor without ever sharing a half metre.
+ * one has the door, the west side, the installation and the front of the floor,
+ * while the till, the back wall and the stock corner stay with whoever is on the
+ * register. The corridor was measured the same way every other one here was,
+ * against the fixtures' own footprints with the 0.28 body radius: the tightest
+ * leg clears by 0.73, and no stop comes within 0.81 of one of the register
+ * keeper's or the cat's, so the three of them share a floor without ever sharing
+ * a half metre.
  */
 const SHOP_FLOOR_BEAT: RoamPlan = {
   lane: [
-    [-3.0, -3.0],
-    [-2.9, -1.5],
-    [-3.0, 0.7],
-    /* Swung wide of the island's left end and along the front of the floor. */
-    [-3.1, 2.4],
-    [-2.6, 3.6],
-    [-1.0, 3.9],
-    [0.6, 3.8],
-    [1.6, 3.6],
+    [-4.0, -5.0],
+    [-3.9, -3.6],
+    [-4.4, -0.2],
+    [-2.8, 0.9],
+    [-3.4, 4.6],
+    [-1.4, 4.75],
+    [0.85, 5.4],
+    [2.3, 5.1],
   ],
   stops: [
-    /* Turned back into the room rather than at the door they came through: two
-       of these five face the floor, so the shop is never all backs. */
-    { id: 'door', at: [-3.0, -3.0], node: 0, facing: 0.79, dwell: [3, 5], action: 'idle' },
-    { id: 'cabinets', at: [-3.0, 0.7], node: 2, facing: -1.57, dwell: [4, 7], action: 'inspect', weight: 2 },
-    /* Facing the island across the front of the floor, where the boxes are. */
-    { id: 'island', at: [-1.0, 3.9], node: 5, facing: 2.72, dwell: [3.5, 6], action: 'work', weight: 2 },
-    { id: 'front', at: [0.6, 3.8], node: 6, facing: 0.3, dwell: [2, 4], action: 'idle' },
-    { id: 'east', at: [1.6, 3.6], node: 7, facing: 2.81, dwell: [2.5, 4.5], action: 'inspect' },
+    { id: 'door', at: [-4.0, -5.0], node: 0, facing: 0.74, dwell: [3, 5], action: 'idle' },
+    /* stands back from the installation and takes it in, as everyone does */
+    { id: 'momo', at: [-2.8, 0.9], node: 3, facing: 1.98, dwell: [4, 7], action: 'inspect', weight: 2 },
+    { id: 'island', at: [-1.4, 4.75], node: 5, facing: 2.54, dwell: [3.5, 6], action: 'work', weight: 2 },
+    { id: 'front', at: [0.85, 5.4], node: 6, facing: 0.3, dwell: [2, 4], action: 'idle' },
+    { id: 'east', at: [2.3, 5.1], node: 7, facing: 2.85, dwell: [2.5, 4.5], action: 'inspect' },
   ],
 };
 

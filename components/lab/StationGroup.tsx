@@ -20,6 +20,7 @@ export function StationGroup({
   rotation = 0,
   ringRadius = 1.1,
   ringColor = '#e4738f',
+  onSelect,
   children,
 }: {
   id: string;
@@ -27,6 +28,7 @@ export function StationGroup({
   rotation?: number;
   ringRadius?: number;
   ringColor?: string;
+  onSelect?: () => void;
   children: ReactNode;
 }) {
   const ref = useRef<THREE.Group>(null);
@@ -61,6 +63,7 @@ export function StationGroup({
       onClick={(event) => {
         event.stopPropagation();
         selectEntity({ kind: 'station', id });
+        onSelect?.();
       }}
     >
       {children}

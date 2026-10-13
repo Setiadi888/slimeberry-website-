@@ -6,13 +6,13 @@ import * as THREE from 'three';
 import { BUCKET_PRODUCTS, DESSERT_PRODUCTS, FRUIT_PRODUCTS, type Product } from '@/lib/products';
 import { FLOOR_TOP_Y } from '@/lib/layout';
 import { MART_POS } from '@/lib/martLayout';
-import { PALETTE } from '@/lib/palette';
+import { FINISH, FINISH_PBR } from '@/lib/storeFinish';
 import { drawContained, drawWordmarkFallback, useBrandImage } from '@/lib/brand';
 import { NO_HIT, StationGroup } from '@/components/lab/StationGroup';
 import { BOX_HEIGHT, ProductBox, type BoxSeries } from './ProductBox';
 
-const CREAM = '#fbf7f0';
-const CREAM_DEEP = '#eee4d6';
+const CREAM = FINISH.stone;
+const CREAM_DEEP = FINISH.travertine;
 
 /* Each line keeps the colour its own stand had, which is what tells the three
    bays apart now that they share one carcass. */
@@ -141,7 +141,7 @@ export function SeriesIsland() {
 
   return (
     <StationGroup id="seriesisland" position={MART_POS.seriesIsland} ringRadius={2.0} ringColor={LEAF}>
-      {/* plinth, in the oak the wall run is fitted in */}
+      {/* One pale-stone display volume; the boxes remain the colour in the room. */}
       <RoundedBox
         args={[ISLAND_W + 0.06, 0.12, 0.84]}
         radius={0.03}
@@ -150,12 +150,12 @@ export function SeriesIsland() {
         castShadow
         receiveShadow
       >
-        <meshStandardMaterial color={PALETTE.woodDark} roughness={0.82} />
+        <meshStandardMaterial color={FINISH.black} {...FINISH_PBR.black} />
       </RoundedBox>
       {/* the body, and the two decks across it */}
       <mesh position={[0, (FLOOR_TOP_Y + FRONT_Y) / 2 + 0.03, 0]} castShadow receiveShadow>
         <boxGeometry args={[ISLAND_W - 0.1, FRONT_Y - FLOOR_TOP_Y - 0.06, 0.72]} />
-        <meshStandardMaterial color={CREAM_DEEP} roughness={0.72} />
+        <meshStandardMaterial color={CREAM_DEEP} roughness={0.55} />
       </mesh>
       <RoundedBox
         args={[ISLAND_W, 0.08, DECK_D]}
