@@ -1,5 +1,5 @@
 import { formatPrice, getProduct } from './products';
-import { getWorker } from './workers';
+import { getWorker, martCashier } from './workers';
 import { getMachine, getStation, getTank } from './fixtures';
 import type { EntityKind, EntityRef } from './interaction';
 
@@ -42,7 +42,7 @@ export interface CardContent {
    * factory information, not shopping surfaces. Products are discovered through
    * the tanks and the display shelf instead.
    */
-  cta?: { label: string; action: 'add' | 'view' | 'gachapon' };
+  cta?: { label: string; action: 'add' | 'view' };
   /** How high above the anchor the card should float, in world units. */
   anchorHeight: number;
 }
@@ -101,21 +101,25 @@ export function describe(ref: EntityRef | null): CardContent | null {
     const station = getStation(ref.id);
     if (!station) return null;
     const product = station.productId ? getProduct(station.productId) : null;
-    const isGachapon = station.id === 'gachapon';
+
     return {
       eyebrow: station.step,
       title: station.name,
-      emoji: isGachapon ? '🪙' : '🏭',
+      emoji: station.id === 'sink' ? '🚰' : '🏭',
       line: station.blurb,
       task: product ? { emoji: product.emoji, label: product.name } : undefined,
-      stats: station.stats,
+      // the checkout is the one card that names people, and the shop has six
+      stats:
+        station.id === 'checkout'
+          ? [
+              { label: 'Days', value: martCashier('day').name },
+              { label: 'Nights', value: martCashier('night').name },
+              ...station.stats,
+            ]
+          : station.stats,
       accent: station.accent,
       productId: station.productId,
-      cta: isGachapon
-        ? { label: 'Open the Gachapon', action: 'gachapon' }
-        : product
-          ? { label: 'See the slime', action: 'view' }
-          : undefined,
+      cta: product ? { label: 'See the slime', action: 'view' } : undefined,
       anchorHeight: station.anchorHeight,
     };
   }

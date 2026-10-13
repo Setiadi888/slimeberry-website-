@@ -8,6 +8,8 @@ import { PALETTE } from '@/lib/palette';
 import { BELT, STATION_POS } from '@/lib/layout';
 import { useLabQuality } from './QualityContext';
 import { NO_HIT, StationGroup } from './StationGroup';
+import { ServicePanel } from './DesignedForms';
+import { Microscope } from './Microscope';
 
 /**
  * Quality control, sited on the belt so the flow reads without labels: batches
@@ -69,31 +71,10 @@ export function QCStation() {
         </mesh>
       ))}
 
-      {/* magnifier on a stand */}
-      <group position={[0.46, 1.0, -0.18]}>
-        <mesh position={[0, 0.16, 0]} castShadow raycast={NO_HIT}>
-          <cylinderGeometry args={[0.022, 0.022, 0.32, 8]} />
-          <meshStandardMaterial color={PALETTE.metalDark} roughness={0.4} metalness={0.5} />
-        </mesh>
-        <mesh position={[0, 0.33, 0.06]} rotation={[Math.PI / 2.6, 0, 0]} castShadow raycast={NO_HIT}>
-          <torusGeometry args={[0.1, 0.016, 8, 18]} />
-          <meshStandardMaterial color={PALETTE.metalDark} roughness={0.4} metalness={0.5} />
-        </mesh>
-        <mesh position={[0, 0.33, 0.06]} rotation={[Math.PI / 2.6, 0, 0]} raycast={NO_HIT}>
-          <circleGeometry args={[0.096, 18]} />
-          <meshPhysicalMaterial color="#eaf6fb" roughness={0.05} transparent opacity={0.45} />
-        </mesh>
-      </group>
-
-      {/* pass / fail trays */}
-      <mesh position={[-0.48, 1.0, 0.28]} raycast={NO_HIT}>
-        <boxGeometry args={[0.3, 0.03, 0.2]} />
-        <meshStandardMaterial color="#9dc47f" roughness={0.6} />
-      </mesh>
-      <mesh position={[-0.48, 1.0, -0.04]} raycast={NO_HIT}>
-        <boxGeometry args={[0.3, 0.03, 0.2]} />
-        <meshStandardMaterial color="#e8a3a3" roughness={0.6} />
-      </mesh>
+      {/* The one thing on this bench. The magnifier on its stand and the two
+          pass/fail trays that stood beside it are gone. */}
+      <Microscope position={[0.26, 0.99, -0.02]} rotation={-0.42} />
+      <group position={[0,.6,.435]}><ServicePanel width={1.08} height={.35}/></group>
     </StationGroup>
   );
 }

@@ -14,14 +14,15 @@ export interface ProductionStage {
 
 /**
  * Mirrors the physical line: the belt carries slime out of the wall discharge,
- * through QC, filling and labelling, and packaging closes it on the right.
+ * past the filling gantry and into the packaging tunnel, and the boxes that come
+ * out the far side pass QC and labelling on their way east.
  */
 export const STAGES: ProductionStage[] = [
   { id: 'grow', index: 1, label: 'Grow', view: 'greenhouse' },
   { id: 'mix', index: 2, label: 'Mix', view: 'mixing' },
   { id: 'texture', index: 3, label: 'Texture', view: 'texture' },
-  { id: 'qc', index: 4, label: 'QC', view: 'qc' },
-  { id: 'pack', index: 5, label: 'Pack', view: 'packing' },
+  { id: 'pack', index: 4, label: 'Pack', view: 'packing' },
+  { id: 'qc', index: 5, label: 'QC', view: 'qc' },
 ];
 
 /** Seconds each stage holds before production rolls on. */

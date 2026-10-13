@@ -3,7 +3,6 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { startFactoryLife, useThought } from '@/lib/factoryLife';
-import { getWorker } from '@/lib/workers';
 import { useHovered, useSelected } from '@/lib/interaction';
 import { AnchoredCard } from './AnchoredCard';
 
@@ -32,24 +31,31 @@ export function FactoryLife() {
   }, [thought]);
 
   if (!thought) return null;
-  const worker = getWorker(thought.workerId);
-  if (!worker) return null;
 
   /* Their card already occupies this spot, and the two stack illegibly. If you
      are looking at someone you get what they say out loud, not what they were
-     idly thinking a moment earlier. */
+     idly thinking a moment earlier — unless they are complaining *about* being
+     prodded, which is aimed at you and rides above the card instead. */
   const engaged = (reference: { kind: string; id: string } | null) =>
-    reference?.kind === 'worker' && reference.id === thought.workerId;
-  if (engaged(selected) || engaged(hovered)) return null;
+    reference?.kind === thought.speaker.kind && reference.id === thought.speaker.id;
+  if (!thought.insistent && (engaged(selected) || engaged(hovered))) return null;
 
   return (
-    <AnchoredCard target={{ kind: 'worker', id: thought.workerId }} anchorHeight={1.5}>
+    <AnchoredCard target={thought.speaker} anchorHeight={thought.height}>
       <div ref={bubbleRef} className="relative">
-        <div className="rounded-2xl bg-white/92 px-3 py-1.5 text-[11.5px] text-[#4a5262] shadow-[0_6px_20px_rgba(80,60,40,0.16)] backdrop-blur-md">
+        <div
+          className={`max-w-[15rem] rounded-2xl px-3 py-1.5 text-[11.5px] shadow-[0_6px_20px_rgba(80,60,40,0.16)] backdrop-blur-md ${
+            thought.insistent ? 'bg-[#3f4756]/94 text-white' : 'bg-white/92 text-[#4a5262]'
+          }`}
+        >
           {thought.text}
         </div>
         {/* little tail so it reads as a thought, not a label */}
-        <span className="absolute -bottom-1 left-4 h-2 w-2 rotate-45 rounded-[2px] bg-white/92" />
+        <span
+          className={`absolute -bottom-1 left-4 h-2 w-2 rotate-45 rounded-[2px] ${
+            thought.insistent ? 'bg-[#3f4756]/94' : 'bg-white/92'
+          }`}
+        />
       </div>
     </AnchoredCard>
   );

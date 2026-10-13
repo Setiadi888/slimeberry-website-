@@ -5,11 +5,16 @@ import gsap from 'gsap';
 import {
   hydrateSound,
   muteAll,
+  setMusicEnabled,
+  setTrack,
   stopSound,
   toggleEffects,
   toggleMusic,
+  TRACKS,
   useEffectsEnabled,
   useMusicEnabled,
+  useTrack,
+  type TrackId,
 } from '@/lib/audio';
 
 function Switch({
@@ -52,6 +57,55 @@ function Switch({
 }
 
 /**
+ * Which tune is playing.
+ *
+ * A compact list keeps every tune visible, including on a narrow phone.
+ *
+ * Pressing one also starts the music if it was off — the names sit under a
+ * switch labelled Music, so pressing a name plainly means *play this one*, and
+ * making someone flip the switch first to hear what they just chose would be a
+ * second step for no reason.
+ */
+function TrackPicker({ track, playing }: { track: TrackId; playing: boolean }) {
+  return (
+    <div role="radiogroup" aria-label="Music track" className="grid gap-1 px-2.5 pb-1.5 pt-0.5">
+      {TRACKS.map((option) => {
+        const current = option.id === track;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            role="radio"
+            aria-checked={current}
+            title={option.hint}
+            onClick={() => {
+              setTrack(option.id);
+              if (!playing) setMusicEnabled(true);
+            }}
+            className={`flex-1 rounded-lg px-2 py-1.5 text-left transition ${
+              current && playing
+                ? 'bg-[#e4738f] text-white'
+                : current
+                  ? 'bg-black/[0.06] text-[#3f4756]'
+                  : 'text-[#5a6172] hover:bg-black/[0.04]'
+            }`}
+          >
+            <span className="block text-[11.5px] font-medium">{option.name}</span>
+            <span
+              className={`block text-[9.5px] leading-snug ${
+                current && playing ? 'text-white/75' : 'text-[#9aa0ad]'
+              }`}
+            >
+              {option.hint}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
  * Sound controls.
  *
  * Two switches rather than one, because the shop tune and the world's own
@@ -65,6 +119,7 @@ function Switch({
  */
 export function SoundToggle() {
   const music = useMusicEnabled();
+  const track = useTrack();
   const effects = useEffectsEnabled();
   const anyOn = music || effects;
   const [open, setOpen] = useState(false);
@@ -138,12 +193,8 @@ export function SoundToggle() {
           <p className="px-2.5 pb-1 pt-1.5 text-[10px] uppercase tracking-[0.16em] text-[#9aa0ad]">
             Sound
           </p>
-          <Switch
-            label="Music"
-            hint="The shop tune"
-            on={music}
-            onChange={toggleMusic}
-          />
+          <Switch label="Music" hint="Background tune" on={music} onChange={toggleMusic} />
+          <TrackPicker track={track} playing={music} />
           <Switch
             label="Sound effects"
             hint="Footsteps, voices, the door"

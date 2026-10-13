@@ -8,8 +8,6 @@ import { Navigation } from '@/components/ui/Navigation';
 import { OrderSequence } from '@/components/ui/OrderSequence';
 import { RoomOverlays } from '@/components/ui/RoomOverlays';
 import { RoomTransition } from '@/components/ui/RoomTransition';
-import { SbCoinAward } from '@/components/ui/SbCoinAward';
-import { GachaponPanel } from '@/components/ui/GachaponPanel';
 import { Toast } from '@/components/ui/Toast';
 
 export default function Home() {
@@ -24,8 +22,6 @@ export default function Home() {
       <CartPanel />
       <AboutPanel />
       <OrderSequence />
-      <GachaponPanel />
-      <SbCoinAward />
       <Toast />
 
       {/* Whichever room's chrome applies. */}

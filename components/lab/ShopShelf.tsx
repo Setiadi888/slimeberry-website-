@@ -3,16 +3,18 @@
 import { RoundedBox } from '@react-three/drei';
 import { MINI_PRODUCTS, SIGNATURE_PRODUCTS } from '@/lib/products';
 import { PALETTE } from '@/lib/palette';
+import { CUP_SCALE } from '@/lib/cupSize';
 import { SlimeTub } from './SlimeTub';
 import { NO_HIT } from './StationGroup';
 
-const SIGNATURE_SPACING = 0.78;
+const SIGNATURE_SPACING = 0.62;
 const MINI_SPACING = 0.62;
 const MINI_PER_ROW = 5;
-/* The whole cabinet is Mainline cups now. A cup is 0.89 wide at scale 1, so
-   these two sizes keep the same footprints the old jars had. */
-const SIGNATURE_SCALE = 0.78;
-const MINI_SCALE = 0.6;
+/* Signatures and testers are the same cup at the same size, as every cup in
+   both rooms now is (`lib/cupSize`). The signatures still get the eye-level
+   shelf; they are no longer also the biggest thing on it. */
+const SIGNATURE_SCALE = CUP_SCALE.tub;
+const MINI_SCALE = CUP_SCALE.tub;
 
 /** Shelf heights, bottom to top. The signatures sit at eye level. */
 const ROW_Y = { minisLower: 0.62, signatures: 1.52, minisUpper: 2.42 } as const;
@@ -78,6 +80,11 @@ export function ShopShelf({
       </RoundedBox>
 
       {/* shelves */}
+      {/* Brass shelf lips and a recessed slatted back make this a retail fixture. */}
+      {[-1.45,-1.16,-.87,-.58,-.29,0,.29,.58,.87,1.16,1.45].map(x=><mesh key={x} position={[x,1.72,-.323]} raycast={NO_HIT}>
+        <boxGeometry args={[.015,2.94,.012]}/><meshStandardMaterial color="#ccd5c0" roughness={.9}/></mesh>)}
+      {[ROW_Y.minisLower,ROW_Y.signatures,ROW_Y.minisUpper].map(y=><mesh key={`lip-${y}`} position={[0,y-.05,.48]} raycast={NO_HIT}>
+        <boxGeometry args={[3.2,.045,.025]}/><meshStandardMaterial color="#cbb995" metalness={.3} roughness={.5}/></mesh>)}
       {[ROW_Y.minisLower, ROW_Y.signatures, ROW_Y.minisUpper].map((y) => (
         <RoundedBox
           key={y}
@@ -93,15 +100,7 @@ export function ShopShelf({
         </RoundedBox>
       ))}
 
-      {/* feet */}
-      {[-1.45, 1.45].map((x) => (
-        <mesh key={x} position={[x, 0.09, 0]} castShadow raycast={NO_HIT}>
-          <boxGeometry args={[0.42, 0.18, 0.8]} />
-          <meshStandardMaterial color={PALETTE.woodDark} roughness={0.8} />
-        </mesh>
-      ))}
-
-      {/* the four signature cups, full size, at the front of the middle shelf */}
+      {/* the four signature cups, at the front of the middle shelf */}
       {SIGNATURE_PRODUCTS.map((product) => (
         <SlimeTub
           key={product.id}

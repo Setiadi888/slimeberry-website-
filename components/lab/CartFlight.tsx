@@ -23,8 +23,8 @@ interface Flight {
 
 /**
  * Add-to-cart, made physical: the jar you bought lifts off its shelf, arcs
- * across the factory and drops onto the dispatch pallet, where the order crate
- * then appears.
+ * across the factory and drops into the order trolley, where the crate then
+ * appears.
  *
  * Pooled meshes driven from `useFrame` — adding to the cart triggers no React
  * re-render here, and the DOM cart updates independently, so the purchase still
@@ -45,8 +45,13 @@ export function CartFlight() {
     [],
   );
 
+  /*
+    Aimed at the order trolley, which is where the crate now appears — and which
+    moves, because somebody may be pushing it. Read fresh every frame with the
+    park position as the fallback, so a jar in flight follows it.
+  */
   const target = useMemo(
-    () => new THREE.Vector3(STATION_POS.dispatch[0], 0.75, STATION_POS.dispatch[2]),
+    () => new THREE.Vector3(STATION_POS.trolleyPark[0], 0.75, STATION_POS.trolleyPark[2]),
     [],
   );
   const control = useMemo(() => new THREE.Vector3(), []);
@@ -71,6 +76,9 @@ export function CartFlight() {
   useFrame((_, delta) => {
     const group = groupRef.current;
     if (!group) return;
+
+    const live = getAnchorPosition('station', 'trolley', 0.6);
+    if (live) target.copy(live);
 
     flights.forEach((flight, index) => {
       const mesh = group.children[index] as THREE.Mesh<

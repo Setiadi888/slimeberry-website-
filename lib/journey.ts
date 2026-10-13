@@ -19,11 +19,13 @@ export const JOURNEY: JourneyStep[] = [
   { id: 'grow', label: 'Grown', labelId: 'greenhouse' },
   { id: 'mix', label: 'Mixed', labelId: 'mixing' },
   { id: 'texture', label: 'Tested', labelId: 'texture' },
-  { id: 'qc', label: 'Checked', labelId: 'qc' },
+  // filled, then boxed, then checked and labelled — the order the floor now runs
   { id: 'fill', label: 'Filled', labelId: 'filling' },
-  { id: 'label', label: 'Labelled', labelId: 'labelling' },
   { id: 'pack', label: 'Packed', labelId: 'packaging' },
-  { id: 'ship', label: 'Shipped', labelId: 'dispatch' },
+  { id: 'qc', label: 'Checked', labelId: 'qc' },
+  { id: 'label', label: 'Labelled', labelId: 'labelling' },
+  // dispatch went with its pallet; the shop cabinet is where a jar ends up
+  { id: 'ship', label: 'Shipped', labelId: 'shop' },
 ];
 
 /** Seconds each step holds before the trace moves on. */

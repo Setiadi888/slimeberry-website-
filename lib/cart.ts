@@ -3,7 +3,6 @@
 import { createStore, useStore } from './store';
 import { PRODUCTS, type Product } from './products';
 import { recordOrder } from './dashboard';
-import { awardSbCoin } from './sbcoin';
 
 export interface CartLine {
   productId: string;
@@ -17,11 +16,7 @@ interface CartState {
   open: boolean;
   /** Set while the order-received sequence plays. */
   fulfilling: boolean;
-  /**
-   * Identifies the order currently being placed. SB COIN is minted against this
-   * id, and the wallet remembers which ids it has already paid, so no amount of
-   * refreshing or replaying can earn a second coin for the same order.
-   */
+  /** Identifies the order currently being placed, and is cleared when it lands. */
   orderId: string | null;
 }
 
@@ -90,12 +85,8 @@ export function placeOrder(): void {
   );
 }
 
-/**
- * The single successful-order state. SB COIN is minted here — never on add to
- * cart, never on opening a product, never on an abandoned checkout.
- */
+/** The single successful-order state: the basket empties and the order closes. */
 export function finishOrder(): void {
-  const { orderId } = cartStore.get();
   cartStore.set((state) => ({
     ...state,
     fulfilling: false,
@@ -103,7 +94,6 @@ export function finishOrder(): void {
     toast: null,
     orderId: null,
   }));
-  awardSbCoin(orderId);
 }
 
 export const useCartOpen = () => useStore(cartStore, (state) => state.open);

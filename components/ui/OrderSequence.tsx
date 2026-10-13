@@ -3,14 +3,19 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { finishOrder, useCartFulfilling } from '@/lib/cart';
-import { WORKERS } from '@/lib/workers';
+import { useCrew } from '@/lib/shift';
+import { crewWorkers } from '@/lib/workers';
 
 /**
  * Order hand-off: the three characters light up in production order, then the
  * van leaves. Pure branding — a GSAP timeline over DOM, no simulation.
+ *
+ * Whoever is on shift is who you see. An order placed at three in the morning is
+ * made by the night crew, and saying so costs one hook.
  */
 export function OrderSequence() {
   const fulfilling = useCartFulfilling();
+  const onShift = crewWorkers(useCrew());
   const rootRef = useRef<HTMLDivElement>(null);
   const stepsRef = useRef<HTMLDivElement>(null);
 
@@ -46,7 +51,7 @@ export function OrderSequence() {
       <div className="rounded-2xl bg-white/92 px-6 py-5 text-center shadow-[0_16px_50px_rgba(80,60,40,0.24)]">
         <p className="text-[10px] uppercase tracking-[0.18em] text-[#9aa0ad]">Order received</p>
         <div ref={stepsRef} className="mt-3 flex items-center gap-2">
-          {WORKERS.map((worker) => (
+          {onShift.map((worker) => (
             <div key={worker.id} className="flex flex-col items-center gap-1">
               <span
                 className="grid h-11 w-11 place-items-center rounded-full text-lg"

@@ -22,6 +22,10 @@ export interface WorkerPose {
   attention: number;
   /** 0..1 raising a coffee cup — the break-time reaction. */
   sip: number;
+  /** 0..1 perched on a stool: legs folded forward, weight off the feet. */
+  sit: number;
+  /** 0..1 prodded past their patience: flushed face, mouth turned down. */
+  grumpy: number;
   /** Holding a crate in both hands. */
   carrying: boolean;
   /** Vertical bob applied to the whole body. */
@@ -37,6 +41,8 @@ export function createWorkerPose(): WorkerPose {
     wave: 0,
     attention: 0,
     sip: 0,
+    sit: 0,
+    grumpy: 0,
     carrying: false,
     bob: 0,
   };

@@ -8,7 +8,6 @@ import { describe } from '@/lib/describe';
 import { getProduct } from '@/lib/products';
 import { selectEntity, setView, useSelected, type EntityRef } from '@/lib/interaction';
 import { JOURNEY, traceProduct, useJourney } from '@/lib/journey';
-import { setGachaponOpen } from '@/lib/sbcoin';
 import { AnchoredCard } from './AnchoredCard';
 import { MetricBars, ProgressBar, Stars, TaskRow } from './CardBody';
 
@@ -74,12 +73,6 @@ export function DetailPanel() {
 
   const handleCta = () => {
     if (!content.cta) return;
-    if (content.cta.action === 'gachapon') {
-      selectEntity(null);
-      setView('gachapon');
-      setGachaponOpen(true);
-      return;
-    }
     if (!product) return;
     if (content.cta.action === 'add') {
       addToCart(product);
@@ -191,7 +184,7 @@ export function DetailPanel() {
           </div>
         )}
 
-        {content.cta && (product || content.cta.action === 'gachapon') && (
+        {content.cta && product && (
           <button
             type="button"
             onClick={handleCta}

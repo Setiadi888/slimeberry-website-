@@ -1,25 +1,104 @@
-/** Small physical labels that explain the factory layout. Decorative only. */
-export interface FactoryLabel {
+/**
+ * Factory signage.
+ *
+ * These used to be DOM chips projected from world space, floating a metre above
+ * each machine. They read as an interface laid over the diorama rather than as
+ * part of it, so they are now real plaques bolted to the thing they name — the
+ * same trick the discharge hood's placard has always used: a canvas texture on
+ * a small plate, lit from the scene's own lights.
+ *
+ * Every position below is the centre of the plate in world space, sitting a few
+ * millimetres proud of the surface it is fixed to. The printed face looks down
+ * its own +z, so `rotation` is what turns it to face the room.
+ */
+export interface StationSign {
+  /** Matches a station id, so the product journey can light the right plate. */
   id: string;
+  /** Badge on the left of the plate. Omitted for the areas that are not steps. */
+  step?: string;
   text: string;
-  /** World position of the label's anchor point. */
+  accent: string;
   position: [number, number, number];
+  /** Y rotation. 0 faces +z; Math.PI / 2 faces +x. */
+  rotation?: number;
+  /** Plate width in metres; the height follows from the artwork's aspect. */
+  width?: number;
+  /**
+   * Sits the plate on a little foot instead of standoff pins — for the two that
+   * stand on a surface rather than being fixed to a face.
+   */
+  stand?: boolean;
 }
 
-export const FACTORY_LABELS: FactoryLabel[] = [
-  { id: 'greenhouse', text: '01 · Greenhouse', position: [-5.9, 2.85, -3.75] },
-  { id: 'mixing', text: '02 · Mixing Lab', position: [-3.15, 3.15, -3.8] },
-  { id: 'texture', text: '03 · Texture Lab', position: [-6.1, 2.0, 0.9] },
-  { id: 'qc', text: '04 · Quality Control', position: [1.4, 1.85, 2.15] },
-  { id: 'filling', text: '05 · Filling', position: [2.7, 1.95, 2.2] },
-  { id: 'labelling', text: '06 · Labelling', position: [4.3, 1.9, 2.2] },
-  { id: 'packaging', text: '07 · Packaging', position: [6.6, 2.1, 3.55] },
-  { id: 'gachapon', text: '🪙 Gachapon', position: [-6.1, 3.35, -1.2] },
-  { id: 'dispatch', text: 'Dispatch', position: [6.3, 1.35, -2.8] },
-  { id: 'shop', text: 'Shop', position: [3.3, 3.65, -4.93] },
-  { id: 'mart', text: '🚪 SB Mart', position: [6.2, 3.5, -5.2] },
-  { id: 'break', text: 'Break Area', position: [-4.6, 1.75, 2.4] },
+export const STATION_SIGNS: StationSign[] = [
+  // fixed to the front board of the raised bed
+  {
+    id: 'greenhouse',
+    step: '01',
+    text: 'GREENHOUSE',
+    accent: '#8fbc6d',
+    position: [-5.9, 0.29, -2.965],
+    width: 0.86,
+  },
+  // on the mixer's front panel, under the transfer pipe
+  {
+    id: 'mixing',
+    step: '02',
+    text: 'MIXING LAB',
+    accent: '#e4738f',
+    position: [-2.6, 0.66, -3.05],
+    width: 0.8,
+  },
+  // out on its own at the west end of the belt, first thing a jar meets
+  {
+    id: 'filling',
+    step: '04',
+    text: 'FILLING',
+    accent: '#e4738f',
+    position: [-4.6, 0.62, 2.615],
+    width: 0.7,
+  },
+  // on the tunnel's front face, between the belt mouths and the hazard band
+  {
+    id: 'packaging',
+    step: '05',
+    text: 'PACKAGING',
+    accent: '#d94f75',
+    position: [-1.0, 1.06, 4.57],
+    width: 0.82,
+  },
+  {
+    id: 'qc',
+    step: '06',
+    text: 'QUALITY CONTROL',
+    accent: '#7bbf6a',
+    position: [1.4, 0.62, 2.6],
+    width: 0.86,
+  },
+  // shoulder to shoulder with QC now, which is how the two are read
+  {
+    id: 'labelling',
+    step: '07',
+    text: 'LABELLING',
+    accent: '#f3d78c',
+    position: [2.75, 0.62, 2.615],
+    width: 0.72,
+  },
+  // on the shop cabinet's cornice
+  {
+    id: 'shop',
+    text: 'SHOP',
+    accent: '#e4738f',
+    position: [3.3, 3.35, -4.36],
+    width: 0.72,
+  },
+  // standing on the cafe table, the way a reserved card would
+  {
+    id: 'break',
+    text: 'BREAK AREA',
+    accent: '#f0c86a',
+    position: [4.03, 1.105, 2.37],
+    width: 0.5,
+    stand: true,
+  },
 ];
-
-/** Board on the back wall. Numbers drift a little during a visit. */
-export const LAB_LOG_POSITION: [number, number, number] = [-7.05, 3.15, -2.6];

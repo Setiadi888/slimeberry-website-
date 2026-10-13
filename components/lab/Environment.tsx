@@ -5,6 +5,42 @@ import { useFrame } from '@react-three/fiber';
 import { ContactShadows, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { PALETTE } from '@/lib/palette';
+import { readShift } from '@/lib/shift';
+import { BotanicalPot } from './BotanicalPlants';
+import { Planter } from './Planter';
+
+const PANE_DAY = new THREE.Color('#fdf1dc');
+const PANE_NIGHT = new THREE.Color('#26304f');
+const GLOW_DAY = new THREE.Color('#ffe9c6');
+const GLOW_NIGHT = new THREE.Color('#3f5488');
+
+/**
+ * The pane in the back wall.
+ *
+ * The one surface in the room that is meant to be *outside*, which makes it the
+ * one place the hour can be stated rather than implied. Everything else warms up
+ * after dark; this goes the other way, and the contrast between a cold window
+ * and a warm floor is most of what tells you it is night.
+ */
+function WindowPane() {
+  const ref = useRef<THREE.MeshStandardMaterial>(null);
+
+  useFrame(() => {
+    const material = ref.current;
+    if (!material) return;
+    const n = readShift().night;
+    material.color.lerpColors(PANE_DAY, PANE_NIGHT, n);
+    material.emissive.lerpColors(GLOW_DAY, GLOW_NIGHT, n);
+    material.emissiveIntensity = THREE.MathUtils.lerp(0.5, 0.3, n);
+  });
+
+  return (
+    <mesh position={[0, 0, 0.1]}>
+      <planeGeometry args={[2.1, 1.4]} />
+      <meshStandardMaterial ref={ref} color="#fdf1dc" emissive="#ffe9c6" emissiveIntensity={0.5} roughness={1} />
+    </mesh>
+  );
+}
 
 /**
  * The room shell: a cutaway diorama plinth with two walls, so the lab reads as
@@ -73,15 +109,12 @@ export function LabEnvironment() {
         <meshStandardMaterial color={PALETTE.wallTrim} roughness={0.85} />
       </mesh>
 
-      {/* window on the back wall, with a warm pane */}
+      {/* window on the back wall — daylight by day, a cold night sky after dark */}
       <group position={[-2.2, 3.0, -5.38]}>
         <RoundedBox args={[2.5, 1.8, 0.16]} radius={0.09} smoothness={3}>
           <meshStandardMaterial color={PALETTE.shell} roughness={0.7} />
         </RoundedBox>
-        <mesh position={[0, 0, 0.1]}>
-          <planeGeometry args={[2.1, 1.4]} />
-          <meshStandardMaterial color="#fdf1dc" emissive="#ffe9c6" emissiveIntensity={0.5} roughness={1} />
-        </mesh>
+        <WindowPane />
         <mesh position={[0, 0, 0.13]}>
           <boxGeometry args={[0.07, 1.42, 0.03]} />
           <meshStandardMaterial color={PALETTE.shell} roughness={0.7} />
@@ -92,21 +125,18 @@ export function LabEnvironment() {
         </mesh>
       </group>
 
-      {/* Rug. Pulled back from its old spot so the belt, which now runs the
-          full width of the floor, does not pass over it. */}
-      <mesh position={[-2.0, 0.15, 0.35]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <circleGeometry args={[2.0, 40]} />
-        <meshStandardMaterial color="#ecdfe0" roughness={0.95} />
-      </mesh>
-      <mesh position={[-2.0, 0.16, 0.35]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.52, 1.68, 40]} />
-        <meshStandardMaterial color={PALETTE.berry} roughness={0.95} opacity={0.5} transparent />
-      </mesh>
-
-      <PottedPlant position={[-7.1, 0.13, -3.6]} />
       <PottedPlant position={[7.2, 0.13, -4.3]} scale={0.82} phase={2.4} variant="succulent" />
       {/* Tucked into the front corner, clear of the belt's new lane. */}
       <PottedPlant position={[-7.1, 0.13, 5.05]} scale={0.7} phase={4.1} variant="succulent" />
+      {/* The pair of pots that used to stand either side of the way through to
+          SB Mart are one planted trough now — see `Planter`. */}
+      <Planter position={[7.02, 0, -1.25]} length={3.3} rotation={Math.PI / 2} />
+      <BotanicalPot position={[-7.0, 0.14, 2.35]} kind="fern" scale={0.7} color="#d1d9be" />
+      {/* two more down the quiet edges of the floor: in the corner behind the
+          shop shelf, and at the west end of the belt. The third stood at
+          (-7, 0), which is where the hand sink is now. */}
+      <BotanicalPot position={[5.2, 0.14, -4.8]} kind="monstera" scale={0.75} color="#e0d2c0" />
+      <BotanicalPot position={[-7.0, 0.14, 4.6]} kind="fern" scale={0.85} color="#d1d9be" />
 
       <Crate position={[-1.9, 0.13, -4.9]} rotation={0.3} />
       <Crate position={[-1.15, 0.13, -4.75]} rotation={-0.2} scale={0.8} />

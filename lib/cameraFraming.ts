@@ -52,8 +52,9 @@ export type CameraPreset =
   | 'texture'
   | 'qc'
   | 'packing'
-  | 'dispatch'
-  | 'gachapon';
+  /* Not on the stage rail — the elements wall frames itself when pressed. */
+  | 'periodic'
+;
 
 /**
  * Named vantage points for the factory navigation. Distances are deliberately
@@ -63,9 +64,13 @@ export type CameraPreset =
 export const CAMERA_PRESETS: Record<CameraPreset, { target: THREE.Vector3; distance: number }> = {
   greenhouse: { target: new THREE.Vector3(-5.3, 1.3, -3.0), distance: 7.2 },
   mixing: { target: new THREE.Vector3(-3.15, 1.5, -3.0), distance: 7.4 },
-  texture: { target: new THREE.Vector3(-5.4, 1.1, 0.9), distance: 7.0 },
-  gachapon: { target: new THREE.Vector3(-5.2, 1.7, -1.2), distance: 6.4 },
+  texture: { target: new THREE.Vector3(-6.1, 1.1, 0.9), distance: 7.0 },
   qc: { target: new THREE.Vector3(1.3, 1.1, 3.1), distance: 7.0 },
-  packing: { target: new THREE.Vector3(4.6, 1.1, 3.2), distance: 7.4 },
-  dispatch: { target: new THREE.Vector3(6.0, 1.0, -1.2), distance: 7.0 },
+  packing: { target: new THREE.Vector3(-1.0, 1.3, 4.0), distance: 6.6 },
+  /*
+    As close as the orbit controls allow. This one is not a view, it is a control
+    panel — but `minDistance` is 7.5 and the framing boost multiplies whatever is
+    written here, so anything under about 5.6 is clamped back to the same place.
+  */
+  periodic: { target: new THREE.Vector3(-7.2, 2.77, 1.27), distance: 5.6 },
 };

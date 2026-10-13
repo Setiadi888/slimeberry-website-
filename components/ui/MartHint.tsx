@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { useSelected } from '@/lib/interaction';
 import { useRoomPhase } from '@/lib/world';
+import { useCrew } from '@/lib/shift';
+import { martCashier } from '@/lib/workers';
 
 /**
  * SB Mart's only piece of chrome: one line telling a first-time visitor that
@@ -11,6 +13,8 @@ import { useRoomPhase } from '@/lib/world';
  */
 export function MartHint() {
   const selected = useSelected();
+  // whoever is actually behind the counter at this hour
+  const cashier = martCashier(useCrew()).name;
   const phase = useRoomPhase();
   const [dismissed, setDismissed] = useState(false);
   const ref = useRef<HTMLParagraphElement>(null);
@@ -38,7 +42,7 @@ export function MartHint() {
       ref={ref}
       className="pointer-events-none absolute inset-x-0 bottom-6 z-20 mx-auto w-fit rounded-full bg-white/75 px-4 py-2 text-center text-[12px] text-[#5a6172] opacity-0 shadow-[0_4px_18px_rgba(80,60,40,0.12)] backdrop-blur-md"
     >
-      Tap a jar to see it · say hello to Dilan
+      Tap a jar to see it · say hello to {cashier}
     </p>
   );
 }

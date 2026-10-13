@@ -158,18 +158,19 @@ export function DischargeChute() {
       </mesh>
 
       {/*
-        Rubber strip curtain. It hangs above jar height on purpose — a jar tops
-        out around y = 0.9, the strips stop at 0.98 — so the flaps read as parted
-        by the cargo without ever intersecting it.
+        Rubber strip curtain. It hangs above the cargo on purpose — the tallest
+        thing on the belt, a fruit series cup, tops out at 1.07, and the strips
+        stop at 1.12 — so the flaps read as parted by the cargo without ever
+        passing through it.
       */}
       <group ref={stripsRef} position={[0.035, 1.32, 0]}>
         {Array.from({ length: STRIPS }, (_, index) => (
           <mesh
             key={index}
-            position={[0, -0.17, (index - (STRIPS - 1) / 2) * stripWidth]}
+            position={[0, -0.1, (index - (STRIPS - 1) / 2) * stripWidth]}
             raycast={NO_HIT}
           >
-            <boxGeometry args={[0.012, 0.34, stripWidth * 0.86]} />
+            <boxGeometry args={[0.012, 0.2, stripWidth * 0.86]} />
             <meshStandardMaterial
               color="#3c434f"
               roughness={0.92}

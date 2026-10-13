@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { setAboutOpen } from '@/lib/about';
 import { enterLab, enterMart, useRoom, useRoomPhase } from '@/lib/world';
 import { CartButton } from './CartButton';
-import { SbCoinBalance } from './SbCoinBalance';
 import { SoundToggle } from './SoundToggle';
 
 export function Navigation() {
@@ -59,7 +58,14 @@ export function Navigation() {
         >
           About us
         </button>
-        <SbCoinBalance />
+        {/* The one link that leaves the diorama: a flat catalogue page for
+            anyone who came to read the jars rather than walk around them. */}
+        <a
+          href="/shop"
+          className="rounded-full px-3 py-1.5 text-sm text-[#5a6172] transition hover:bg-white/70"
+        >
+          Shop
+        </a>
         <SoundToggle />
         <CartButton />
       </nav>

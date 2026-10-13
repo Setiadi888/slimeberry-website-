@@ -10,6 +10,11 @@ import { registerAnchor, unregisterAnchor } from '@/lib/anchors';
 import { hoverEntity, selectEntity, useIsHovered, useIsSelected } from '@/lib/interaction';
 import { useProductionStage } from '@/lib/production';
 import { useLabQuality } from './QualityContext';
+import { Housing, ServicePanel, TurnedForm, type Profile } from './DesignedForms';
+import { NO_HIT } from './StationGroup';
+
+const HOPPER: Profile = [[.12,0],[.15,.05],[.18,.24],[.32,.48],[.35,.51],[.35,.55],
+  [.31,.55],[.29,.49],[.15,.25],[.115,.05]];
 
 /** Status the lamps report, driven by whatever stage the line is on. */
 const STATUS_BY_STAGE: Record<string, { label: string; color: string }> = {
@@ -22,8 +27,12 @@ const STATUS_BY_STAGE: Record<string, { label: string; color: string }> = {
 
 /**
  * The mixer. It idles slowly and spins up for a few seconds when a worker
- * presses the button (or the visitor does), so the lab has cause-and-effect
+ * presses the pink button (or the visitor does), so the lab has cause-and-effect
  * rather than one unbroken loop.
+ *
+ * Pressing it does three things: the paddle winds up, the body starts to waggle
+ * on its feet, and the slime in the pipework over it runs — the pipe listens for
+ * the same event, so what you press here is visibly moving somewhere else.
  */
 export function SlimeMachine({
   id = 'mixer',
@@ -35,6 +44,7 @@ export function SlimeMachine({
   rotation?: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const shakeRef = useRef<THREE.Group>(null);
   const paddleRef = useRef<THREE.Group>(null);
   const buttonRef = useRef<THREE.Mesh>(null);
   const lampsRef = useRef<THREE.Group>(null);
@@ -76,9 +86,27 @@ export function SlimeMachine({
         : 0;
     }
 
+    /*
+      The waggle. A machine with a heavy paddle in it does not run smoothly — it
+      shifts about on its feet — so the whole body rocks while it is up to speed
+      and settles the moment it is not. Rolled off `speedRef` rather than `busy`
+      so it winds up and down with the paddle instead of snapping on, and applied
+      to a wrapper inside the anchored group: the card's pointer has to keep
+      still even while the machine does not.
+    */
+    const shake = shakeRef.current;
+    if (shake) {
+      const wind = reducedMotion ? 0 : Math.max(0, (speedRef.current - 0.35) / 2.75);
+      const t = state.clock.getElapsedTime();
+      shake.rotation.z = Math.sin(t * 13.5) * 0.032 * wind;
+      shake.rotation.x = Math.sin(t * 11.2 + 1.1) * 0.022 * wind;
+      shake.position.x = Math.sin(t * 17.3) * 0.022 * wind;
+      shake.position.y = Math.abs(Math.sin(t * 21)) * 0.014 * wind;
+    }
+
     if (buttonRef.current) {
       const depth = pressed ? 0.03 : 0;
-      buttonRef.current.position.z = THREE.MathUtils.damp(buttonRef.current.position.z, 0.24 - depth, 14, delta);
+      buttonRef.current.position.z = THREE.MathUtils.damp(buttonRef.current.position.z, 0.83 - depth, 14, delta);
     }
 
     if (lampsRef.current) {
@@ -124,15 +152,19 @@ export function SlimeMachine({
         <meshBasicMaterial color={PALETTE.berry} transparent opacity={selected ? 0.85 : 0.4} />
       </mesh>
 
+      {/* everything that rocks when it is running — the ring on the floor does not */}
+      <group ref={shakeRef}>
       {/* plinth */}
       <RoundedBox args={[2.5, 0.36, 1.7]} radius={0.09} smoothness={3} position={[0, 0.18, 0]} castShadow receiveShadow>
         <meshStandardMaterial color={PALETTE.metalDark} roughness={0.5} metalness={0.35} />
       </RoundedBox>
 
       {/* body */}
-      <RoundedBox args={[2.2, 1.5, 1.45]} radius={0.16} smoothness={4} position={[0, 1.1, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color={PALETTE.machine} roughness={0.42} metalness={0.15} />
-      </RoundedBox>
+      <group position={[0,1.1,0]}><Housing width={2.2} height={1.5} depth={1.45} color={PALETTE.machine}/></group>
+      <group position={[.48,.62,.737]}><ServicePanel width={.68} height={.3}/></group>
+      {/* A recessed service seam and a small dial pointer. */}
+      <mesh position={[-.42,1.14,.842]} rotation={[0,0,-.4]} raycast={NO_HIT}>
+        <boxGeometry args={[.016,.09,.015]}/><meshStandardMaterial color={PALETTE.ink}/></mesh>
 
       {/* control face */}
       <RoundedBox args={[1.15, 0.72, 0.1] } radius={0.05} smoothness={3} position={[-0.42, 1.22, 0.74]} castShadow>
@@ -165,7 +197,7 @@ export function SlimeMachine({
       {/* the button */}
       <mesh
         ref={buttonRef}
-        position={[0.55, 1.22, 0.24]}
+        position={[0.55, 1.22, 0.83]}
         rotation={[Math.PI / 2, 0, 0]}
         castShadow
         onPointerOver={(event) => {
@@ -180,10 +212,10 @@ export function SlimeMachine({
           press();
         }}
       >
-        <cylinderGeometry args={[0.2, 0.2, 0.5, 20]} />
+        <cylinderGeometry args={[0.18, 0.2, 0.12, 20]} />
         <meshStandardMaterial color={PALETTE.berry} roughness={0.35} emissive={PALETTE.berry} emissiveIntensity={0.25} />
       </mesh>
-      <mesh position={[0.55, 1.22, 0.72]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0.55, 1.22, 0.77]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.26, 0.26, 0.08, 20]} />
         <meshStandardMaterial color={PALETTE.shell} roughness={0.6} />
       </mesh>
@@ -206,10 +238,9 @@ export function SlimeMachine({
       </mesh>
       <group ref={paddleRef} position={[0, 2.02, 0]}>
         {[0, Math.PI / 2].map((angle) => (
-          <mesh key={angle} rotation={[0, angle, 0]} castShadow>
-            <boxGeometry args={[0.9, 0.22, 0.07]} />
+          <RoundedBox key={angle} args={[0.9,0.22,0.07]} radius={.025} smoothness={2} rotation={[0, angle, -.14]} castShadow>
             <meshStandardMaterial color={PALETTE.metalDark} roughness={0.4} metalness={0.4} />
-          </mesh>
+          </RoundedBox>
         ))}
         <mesh>
           <sphereGeometry args={[0.26, 18, 14]} />
@@ -218,10 +249,8 @@ export function SlimeMachine({
       </group>
 
       {/* hopper */}
-      <mesh position={[0.95, 2.0, -0.3]} castShadow>
-        <cylinderGeometry args={[0.34, 0.16, 0.6, 18]} />
-        <meshStandardMaterial color={PALETTE.metal} roughness={0.4} metalness={0.45} />
-      </mesh>
+      <group position={[.95,1.7,-.3]}><TurnedForm profile={HOPPER} color={PALETTE.metal} roughness={.4} metalness={.45}/></group>
+      </group>
     </group>
   );
 }

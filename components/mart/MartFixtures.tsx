@@ -1,81 +1,169 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
+import { Housing } from '@/components/lab/DesignedForms';
 import * as THREE from 'three';
 import { PALETTE } from '@/lib/palette';
 import { FLOOR_TOP_Y } from '@/lib/layout';
-import { MART_POS } from '@/lib/martLayout';
+import { pickStop, planWalk, rollDwell } from '@/lib/roaming';
+import { MART_FACE_X, MART_POS } from '@/lib/martLayout';
 import { MINI_PRODUCTS, SIGNATURE_PRODUCTS, getProduct } from '@/lib/products';
-import { toggleMusic, useMusicEnabled } from '@/lib/audio';
-import { readTrolleyPusher } from '@/lib/trolley';
-import { getAnchor } from '@/lib/anchors';
+import { meow, toggleMusic, useMusicEnabled } from '@/lib/audio';
+import {
+  RADIO_MAX,
+  RADIO_MIN,
+  setRadioOpen,
+  transmissionFor,
+  useRadioYear,
+} from '@/lib/radio';
+import { useCartLines } from '@/lib/cart';
+import { registerAnchor, unregisterAnchor } from '@/lib/anchors';
+import { hoverEntity, selectEntity, useIsHovered, useIsSelected } from '@/lib/interaction';
 import { drawContained, drawFlowerFallback, BRAND, useBrandImage } from '@/lib/brand';
 import { useLabQuality } from '@/components/lab/QualityContext';
 import { NO_HIT, StationGroup } from '@/components/lab/StationGroup';
-import { SlimeTub } from '@/components/lab/SlimeTub';
+import { CUP_SCALE } from '@/lib/cupSize';
+import { CatModel, createCatPose } from './CatModel';
+import { FruitCup, FruitCupProp } from './FruitCup';
 
 /** Every tester except the mango, which is the tub kept by the till. */
 const CABINET_MINIS = MINI_PRODUCTS.filter((product) => product.id !== 'mango');
 const TUB = getProduct('mango');
 
-/* ------------------------------------------------------------ signature wall */
+/* ---------------------------------------------------------------- cabinetry */
+
+/** Every cabinet in the shop is this tall, and breaks at these heights. */
+const CABINET_H = 2.42;
 
 /**
- * The back wall run. Full-size jars at eye level with the price rail under
- * them, faced up the way a real shop merchandises its hero line.
+ * The shop's cabinet, in the warm oak the record cabinet is built from: a back
+ * panel, an upright at every bay, shelves at the shared heights and a plinth
+ * along the floor.
+ *
+ * One component for all of them, because a shop is fitted rather than furnished
+ * — a run only reads as a run if the shelf lines carry across the join, and they
+ * only do that if every carcass is the same carcass.
+ *
+ * `flush` drops the upright at one end, for a cabinet that butts into its
+ * neighbour: two uprights in the same place is a seam that z-fights, and the
+ * neighbour's own upright is already standing there closing the bay.
+ */
+export function ShowcaseCabinet({
+  width,
+  bays,
+  position,
+  rotation = 0,
+  flush,
+  children,
+}: {
+  width: number;
+  bays: number;
+  position: [number, number, number];
+  rotation?: number;
+  flush?: 'left' | 'right';
+  children?: ReactNode;
+}) {
+  const uprights = Array.from({ length: bays + 1 }, (_, i) => -width / 2 + (i * width) / bays).filter(
+    (x, i) => !(flush === 'right' && i === bays) && !(flush === 'left' && i === 0),
+  );
+
+  return (
+    <group position={position} rotation={[0, rotation, 0]}>
+      <RoundedBox
+        args={[width, CABINET_H, 0.1]}
+        radius={0.04}
+        smoothness={3}
+        position={[0, CABINET_H / 2, -0.28]}
+        receiveShadow
+      >
+        <meshStandardMaterial color="#d9bf9f" roughness={0.82} />
+      </RoundedBox>
+      {uprights.map((x) => (
+        <mesh key={x} position={[x, CABINET_H / 2, 0]} castShadow receiveShadow raycast={NO_HIT}>
+          <boxGeometry args={[0.07, CABINET_H, 0.52]} />
+          <meshStandardMaterial color={PALETTE.wood} roughness={0.78} />
+        </mesh>
+      ))}
+      {SHELF_Y.map((y) => (
+        <mesh key={y} position={[0, y, 0]} castShadow receiveShadow raycast={NO_HIT}>
+          <boxGeometry args={[width, 0.07, 0.52]} />
+          <meshStandardMaterial color={PALETTE.wood} roughness={0.78} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.05, 0]} castShadow receiveShadow raycast={NO_HIT}>
+        <boxGeometry args={[width + 0.02, 0.1, 0.54]} />
+        <meshStandardMaterial color={PALETTE.woodDark} roughness={0.82} />
+      </mesh>
+      {children}
+    </group>
+  );
+}
+
+/* ------------------------------------------------------------ signature wall */
+
+/** Where the four hero cups and their backup stock stand, bay by bay. */
+const SIGNATURE_BAY = 0.85;
+
+/**
+ * The back wall run: the hero line at eye level with its backup stock beneath.
+ *
+ * It used to be a white-and-pink shelf of its own design, which made two
+ * different pieces of furniture out of one wall. It is the same oak cabinet as
+ * the record one now, the same height, the same shelf heights, and it runs right
+ * up to it — the two share the upright where they meet, so the back wall reads
+ * as one fitted run from the door to the corner.
  */
 export function SignatureWall() {
   return (
-    <StationGroup id="martshelf" position={MART_POS.wallShelf} ringRadius={1.8} ringColor="#d94f75">
-      {/* backboard */}
-      <RoundedBox args={[3.0, 2.5, 0.12]} radius={0.06} smoothness={3} position={[0, 1.35, -0.4]} receiveShadow>
-        <meshStandardMaterial color="#f6dfe6" roughness={0.88} />
-      </RoundedBox>
+    <StationGroup id="martshelf" position={MART_POS.wallShelf} ringRadius={1.9} ringColor="#c9ac8b">
+      <ShowcaseCabinet width={3.4} bays={4} position={[0, 0, 0]} flush="right">
+        {/* the faced-up line, a cup to a bay */}
+        {SIGNATURE_PRODUCTS.map((product) => (
+          <FruitCup
+            key={product.id}
+            product={product}
+            position={[(product.slot - 1.5) * SIGNATURE_BAY, SHELF_TOP[2], 0.06]}
+            scale={CUP_SCALE.fruit}
+            rotation={-(product.slot - 1.5) * 0.12}
+          />
+        ))}
 
-      {/* two shelves: stock below, the faced-up line above */}
-      {[0.72, 1.46].map((y) => (
-        <RoundedBox key={y} args={[2.9, 0.1, 0.72]} radius={0.04} smoothness={3} position={[0, y, 0]} castShadow receiveShadow raycast={NO_HIT}>
-          <meshStandardMaterial color={PALETTE.shell} roughness={0.6} />
-        </RoundedBox>
-      ))}
-      {[0.72, 1.46].map((y) => (
-        <mesh key={`rail-${y}`} position={[0, y + 0.07, 0.36]} raycast={NO_HIT}>
-          <boxGeometry args={[2.9, 0.1, 0.02]} />
-          <meshStandardMaterial color={PALETTE.berry} roughness={0.6} />
-        </mesh>
-      ))}
-      {[-1.48, 1.48].map((x) => (
-        <mesh key={x} position={[x, 1.15, -0.05]} castShadow raycast={NO_HIT}>
-          <boxGeometry args={[0.1, 2.3, 0.68]} />
-          <meshStandardMaterial color={PALETTE.shell} roughness={0.65} />
-        </mesh>
-      ))}
-      <mesh position={[0, 0.16, 0]} castShadow receiveShadow raycast={NO_HIT}>
-        <boxGeometry args={[2.9, 0.32, 0.68]} />
-        <meshStandardMaterial color="#e9d3d9" roughness={0.8} />
-      </mesh>
-
-      {/* the four signature cups, pickable exactly as in the Lab */}
-      {SIGNATURE_PRODUCTS.map((product) => (
-        <SlimeTub
-          key={product.id}
-          product={product}
-          position={[(product.slot - 1.5) * 0.7, 1.51, 0.06]}
-          scale={0.68}
-          stickerRotation={(product.slot - 1.5) * 0.16}
-        />
-      ))}
-
-      {/* backup stock on the lower shelf, decorative */}
-      {SIGNATURE_PRODUCTS.map((product, index) => (
-        <mesh key={`stock-${product.id}`} position={[(index - 1.5) * 0.7, 0.92, 0.02]} castShadow raycast={NO_HIT}>
-          <cylinderGeometry args={[0.16, 0.14, 0.26, 16]} />
-          <meshPhysicalMaterial color={product.color} roughness={0.28} clearcoat={0.6} transparent opacity={0.88} />
-        </mesh>
-      ))}
+        {/* backup stock on the shelf below: the same cup as scenery, so these
+            never answer the pointer for the pickable ones above them */}
+        {SIGNATURE_PRODUCTS.map((product, index) => (
+          <FruitCupProp
+            key={`stock-${product.id}`}
+            product={product}
+            position={[(index - 1.5) * SIGNATURE_BAY, SHELF_TOP[1], 0.02]}
+            scale={CUP_SCALE.fruit}
+          />
+        ))}
+      </ShowcaseCabinet>
     </StationGroup>
+  );
+}
+
+/**
+ * The west wall, where the mural was: two more cabinets of the same oak, stood
+ * side by side and left empty. They are the room's spare display — shelves
+ * waiting for a line that has not been made yet — so nothing stands on them.
+ *
+ * Both sit in the stretch of that wall the shop camera actually holds. Projected
+ * through it, the wall leaves the frame at about z 2.26 on a desktop and z 1.10
+ * on a phone, and the monstera has the wall behind it up to about z 0, so this
+ * pair fills what is left rather than running on into the crop. Backs sit on
+ * MART_FACE_X exactly, the way the mural did.
+ */
+export function WestWallCabinets() {
+  return (
+    <group>
+      {/* the near one is inside the phone frame whole; the far one carries the
+          run on for everything wider */}
+      <ShowcaseCabinet width={1.0} bays={2} position={[MART_FACE_X + 0.28, 0, 0.58]} rotation={Math.PI / 2} />
+      <ShowcaseCabinet width={1.0} bays={2} position={[MART_FACE_X + 0.28, 0, 1.66]} rotation={Math.PI / 2} />
+    </group>
   );
 }
 
@@ -161,11 +249,29 @@ function useSleeveTextures(): THREE.CanvasTexture[] {
 
 /** Bay centres across the cabinet, and the shelf heights between them. */
 const BAY_X = [-0.867, 0, 0.867];
-/* A cup is 0.89 wide at scale 1, so 0.3 puts three of them across a 0.8 bay
-   with the same footprint the old tester jars had. */
-const CUP_SCALE = 0.3;
-const CUP_SPACING = 0.26;
 const SHELF_Y = [0.12, 0.82, 1.52, 2.22];
+
+/*
+  Where the nine tester cups stand. They are fruit series cups at the shop's one
+  cup size, and at that size they fit two to a bay and no more: three side by
+  side are wider than a bay, and two stacked (0.72) are taller than the 0.63
+  between shelves, which is how they were arranged when the cups were squatter
+  tubs. So they take five bays instead of three — the records all go to the
+  top-left bay, and the plant shares the top-right with one cup.
+*/
+const CUP_PAIR = (0.904 * CUP_SCALE.fruit) / 2 + 0.008;
+const SHELF_TOP = SHELF_Y.map((y) => y + 0.035);
+const CABINET_SLOTS: ReadonlyArray<readonly [number, number]> = [
+  [BAY_X[1] - CUP_PAIR, SHELF_TOP[2]],
+  [BAY_X[1] + CUP_PAIR, SHELF_TOP[2]],
+  [BAY_X[2] - CUP_PAIR, SHELF_TOP[2]],
+  [BAY_X[2] - CUP_PAIR, SHELF_TOP[1]],
+  [BAY_X[2] + CUP_PAIR, SHELF_TOP[1]],
+  [BAY_X[0] - CUP_PAIR, SHELF_TOP[0]],
+  [BAY_X[0] + CUP_PAIR, SHELF_TOP[0]],
+  [BAY_X[1] - CUP_PAIR, SHELF_TOP[0]],
+  [BAY_X[1] + CUP_PAIR, SHELF_TOP[0]],
+];
 
 /**
  * The record cabinet — the shop's hi-fi corner, built after the reference photo
@@ -215,47 +321,25 @@ export function VinylCabinet() {
 
   return (
     <StationGroup id="vinyl" position={MART_POS.vinyl} ringRadius={1.6} ringColor="#c9ac8b">
-      {/* carcass: back, four uprights, four shelves */}
-      <RoundedBox args={[2.6, 2.42, 0.1]} radius={0.04} smoothness={3} position={[0, 1.21, -0.28]} receiveShadow>
-        <meshStandardMaterial color="#d9bf9f" roughness={0.82} />
-      </RoundedBox>
-      {[-1.3, -0.433, 0.433, 1.3].map((x) => (
-        <mesh key={x} position={[x, 1.21, 0]} castShadow receiveShadow raycast={NO_HIT}>
-          <boxGeometry args={[0.07, 2.42, 0.52]} />
-          <meshStandardMaterial color={PALETTE.wood} roughness={0.78} />
-        </mesh>
-      ))}
-      {SHELF_Y.map((y) => (
-        <mesh key={y} position={[0, y, 0]} castShadow receiveShadow raycast={NO_HIT}>
-          <boxGeometry args={[2.6, 0.07, 0.52]} />
-          <meshStandardMaterial color={PALETTE.wood} roughness={0.78} />
-        </mesh>
-      ))}
-      <mesh position={[0, 0.05, 0]} castShadow receiveShadow raycast={NO_HIT}>
-        <boxGeometry args={[2.62, 0.1, 0.54]} />
-        <meshStandardMaterial color={PALETTE.woodDark} roughness={0.82} />
-      </mesh>
+      {/* the carcass this whole shop is fitted out in — three bays of it here,
+          closing the run that starts under the banner */}
+      <ShowcaseCabinet width={2.6} bays={3} position={[0, 0, 0]} />
 
-      {/* ---- top shelf: sleeves on the left and middle, a plant on the right */}
-      {sleeves.slice(0, 2).map((texture, index) => (
+      {/* ---- top shelf: the three records fanned in the left bay, cups in the
+          middle, and the plant beside one more cup on the right */}
+      {sleeves.slice(0, 3).map((texture, index) => (
         <mesh
           key={index}
-          position={[BAY_X[index] + (index === 0 ? -0.06 : 0), 1.85, index === 0 ? 0.04 : 0.02]}
-          rotation={[0.07, index === 0 ? 0.08 : -0.05, 0]}
+          position={[BAY_X[0] - 0.06 + index * 0.09, 1.85 - index * 0.01, 0.06 - index * 0.09]}
+          rotation={[0.07, [0.08, -0.1, 0.16][index], 0]}
           castShadow
           raycast={NO_HIT}
         >
-          <boxGeometry args={[0.56, 0.56, 0.02]} />
+          <boxGeometry args={[0.56 - index * 0.01, 0.56 - index * 0.01, 0.02]} />
           <meshStandardMaterial map={texture} roughness={0.72} />
         </mesh>
       ))}
-      {sleeves[2] && (
-        <mesh position={[BAY_X[0] + 0.12, 1.83, -0.1]} rotation={[0.07, 0.16, 0]} castShadow raycast={NO_HIT}>
-          <boxGeometry args={[0.54, 0.54, 0.02]} />
-          <meshStandardMaterial map={sleeves[2]} roughness={0.72} />
-        </mesh>
-      )}
-      <group position={[BAY_X[2], 1.59, 0.02]}>
+      <group position={[BAY_X[2] + 0.2, 1.59, 0.02]}>
         <mesh position={[0, 0.12, 0]} castShadow raycast={NO_HIT}>
           <cylinderGeometry args={[0.14, 0.11, 0.24, 16]} />
           <meshStandardMaterial color="#dba98c" roughness={0.85} />
@@ -396,22 +480,25 @@ export function VinylCabinet() {
       </group>
 
       {/*
-        ---- the Mainline SB Cups, spread across the three remaining bays ----
-        The plain tester jars are gone: every cup on this cabinet is now the
-        retail tub, each one taking its own flavour's tint through the gingham
-        lid and the flower sticker.
+        ---- the tester cups, two to a bay ----
+        Fruit series cups like every other cup in the shop, each taking its own
+        flavour's colour through the gingham lid and the flower. Each one turns
+        a touch toward the middle of its bay.
       */}
-      {[BAY_X[2], BAY_X[0], BAY_X[1]].map((bayX, bay) => {
-        const shelfY = bay === 0 ? 0.855 : 0.155;
-        return CABINET_MINIS.slice(bay * 3, bay * 3 + 3).map((product, index) => (
-          <SlimeTub
+      {CABINET_MINIS.map((product, index) => {
+        const slot = CABINET_SLOTS[index];
+        if (!slot) return null;
+        const [x, y] = slot;
+        const bay = BAY_X.reduce((nearest, centre) => (Math.abs(centre - x) < Math.abs(nearest - x) ? centre : nearest));
+        return (
+          <FruitCup
             key={product.id}
             product={product}
-            position={[bayX + (index - 1) * CUP_SPACING, shelfY, 0.06]}
-            scale={CUP_SCALE}
-            stickerRotation={(index - 1) * 0.25}
+            position={[x, y, 0.06]}
+            scale={CUP_SCALE.fruit}
+            rotation={Math.sign(bay - x) * 0.12}
           />
-        ));
+        );
       })}
 
       {/* ---- bottom shelf, right bay: the amplifier ------------------------ */}
@@ -522,12 +609,114 @@ export function BlobCarpet() {
   );
 }
 
+
+/* ------------------------------------------------------------------- marble */
+
+/**
+ * Pink arabescato, drawn.
+ *
+ * Arabescato is defined by its veining — bold, branching, running mostly one
+ * way across the slab — so that is what this draws: a warm pink-white ground,
+ * a few wandering primary veins built from a random walk with a drift, hairline
+ * branches off them, and a soft wash under each to keep the edges from looking
+ * inked on. Seeded off a constant, so the slab is the same every load.
+ */
+function useMarbleTexture(): THREE.CanvasTexture | null {
+  return useMemo(() => {
+    if (typeof document === 'undefined') return null;
+    const width = 1024;
+    const height = 448;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // ground: warm pink, very slightly clouded
+    const ground = ctx.createLinearGradient(0, 0, width, height);
+    ground.addColorStop(0, '#fbeef0');
+    ground.addColorStop(0.5, '#f7e2e6');
+    ground.addColorStop(1, '#fdf4f4');
+    ctx.fillStyle = ground;
+    ctx.fillRect(0, 0, width, height);
+
+    let seed = 20260908;
+    const random = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+
+    /** One vein: a random walk with a rightward drift, drawn twice. */
+    const vein = (startY: number, thickness: number, tint: string, wash: string) => {
+      const points: Array<[number, number]> = [];
+      let y = startY;
+      for (let x = -40; x < width + 40; x += 26) {
+        y += (random() - 0.5) * 46;
+        y = Math.max(-30, Math.min(height + 30, y));
+        points.push([x, y]);
+      }
+
+      const trace = () => {
+        ctx.beginPath();
+        ctx.moveTo(points[0][0], points[0][1]);
+        for (let i = 1; i < points.length - 1; i += 1) {
+          const [cx, cy] = points[i];
+          const [nx, ny] = points[i + 1];
+          ctx.quadraticCurveTo(cx, cy, (cx + nx) / 2, (cy + ny) / 2);
+        }
+      };
+
+      // soft wash first, so the vein sits in the stone rather than on it
+      ctx.strokeStyle = wash;
+      ctx.lineWidth = thickness * 5;
+      ctx.lineCap = 'round';
+      trace();
+      ctx.stroke();
+
+      ctx.strokeStyle = tint;
+      ctx.lineWidth = thickness;
+      trace();
+      ctx.stroke();
+
+      // hairlines branching off it
+      for (let i = 2; i < points.length - 2; i += 3) {
+        if (random() > 0.55) continue;
+        const [bx, by] = points[i];
+        ctx.strokeStyle = wash;
+        ctx.lineWidth = Math.max(1, thickness * 0.32);
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.quadraticCurveTo(
+          bx + (random() - 0.5) * 90,
+          by + (random() - 0.5) * 80,
+          bx + (random() - 0.5) * 150,
+          by + (random() - 0.5) * 130,
+        );
+        ctx.stroke();
+      }
+    };
+
+    vein(height * 0.26, 7, 'rgba(150, 108, 122, 0.55)', 'rgba(196, 158, 168, 0.18)');
+    vein(height * 0.58, 9, 'rgba(132, 94, 110, 0.5)', 'rgba(188, 150, 162, 0.2)');
+    vein(height * 0.8, 5, 'rgba(168, 126, 138, 0.42)', 'rgba(206, 172, 180, 0.16)');
+    vein(height * 0.1, 4, 'rgba(176, 138, 148, 0.34)', 'rgba(212, 180, 188, 0.14)');
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
+    return texture;
+  }, []);
+}
+
 /* ------------------------------------------------------------------- checkout */
 
 /** Counter, register and a bag stand. */
 export function Checkout() {
   const drawerRef = useRef<THREE.Group>(null);
+  const marble = useMarbleTexture();
   const { reducedMotion } = useLabQuality();
+
+  useEffect(() => () => marble?.dispose(), [marble]);
 
   useFrame(({ clock }) => {
     if (!drawerRef.current || reducedMotion) return;
@@ -538,22 +727,36 @@ export function Checkout() {
 
   return (
     <StationGroup id="checkout" position={MART_POS.counter} ringRadius={1.5} ringColor="#c98f3a">
-      <RoundedBox args={[2.2, 0.95, 0.85]} radius={0.07} smoothness={3} position={[0, 0.48, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color={PALETTE.wood} roughness={0.78} />
+      {/*
+        The top is at 0.80, waist height on the cashier. It was 1.05 — most of
+        the way up a character who stands 1.3 — and between that and the tub
+        standing right in front of the till, the shop camera saw 38% of the
+        cashier's face on a desktop and 4% in the checkout close-up. Lowered, with
+        the tub moved to the far end, it sees all of it from every framing.
+      */}
+      <group position={[0,.35,0]}><Housing width={2.2} height={.7} depth={.85} color={PALETTE.wood}/></group>
+      {Array.from({length:17},(_,i)=><mesh key={`reed-${i}`} position={[-.96+i*.12,.33,.437]} raycast={NO_HIT}>
+        <capsuleGeometry args={[.013,.44,3,6]}/><meshStandardMaterial color="#d4b997" roughness={.8}/></mesh>)}
+      {/* the slab: pink arabescato rather than the plain white it was */}
+      <RoundedBox args={[2.34, 0.1, 0.98]} radius={0.04} smoothness={3} position={[0, COUNTER_TOP - 0.05, 0]} castShadow receiveShadow raycast={NO_HIT}>
+        <meshStandardMaterial
+          map={marble ?? undefined}
+          color={marble ? '#ffffff' : '#f7e2e6'}
+          roughness={0.24}
+          metalness={0.04}
+        />
       </RoundedBox>
-      <RoundedBox args={[2.34, 0.1, 0.98]} radius={0.04} smoothness={3} position={[0, 1.0, 0]} castShadow receiveShadow raycast={NO_HIT}>
-        <meshStandardMaterial color={PALETTE.shell} roughness={0.5} />
-      </RoundedBox>
-      <mesh position={[0, 0.42, 0.43]} raycast={NO_HIT}>
-        <boxGeometry args={[2.06, 0.3, 0.02]} />
+      <mesh position={[0, 0.3, 0.43]} raycast={NO_HIT}>
+        <boxGeometry args={[2.06, 0.22, 0.02]} />
         <meshStandardMaterial color={PALETTE.berry} roughness={0.7} />
       </mesh>
 
       {/* register */}
-      <group position={[-0.6, 1.05, -0.02]} rotation={[0, 0.22, 0]}>
-        <RoundedBox args={[0.46, 0.28, 0.38]} radius={0.05} smoothness={3} position={[0, 0.14, 0]} castShadow raycast={NO_HIT}>
-          <meshStandardMaterial color="#eef2f7" roughness={0.5} />
-        </RoundedBox>
+      <group position={[-0.6, COUNTER_TOP, -0.02]} rotation={[0, 0.22, 0]}>
+        <group position={[0,.14,0]} scale={[.28,.28,.28]}><Housing width={1.64} height={1} depth={1.36} color="#eef2f7"/></group>
+        <mesh position={[.12,.285,-.035]} rotation={[-.15,0,0]} raycast={NO_HIT}>
+          <boxGeometry args={[.1,.006,.13]}/><meshStandardMaterial color="#fff9ec" roughness={.95}/></mesh>
+        <mesh position={[.12,.294,-.07]} raycast={NO_HIT}><boxGeometry args={[.11,.014,.018]}/><meshStandardMaterial color="#788982"/></mesh>
         <mesh position={[0, 0.33, -0.06]} rotation={[-0.45, 0, 0]} castShadow raycast={NO_HIT}>
           <boxGeometry args={[0.34, 0.2, 0.03]} />
           <meshStandardMaterial color={PALETTE.ink} roughness={0.4} />
@@ -572,11 +775,12 @@ export function Checkout() {
         </group>
       </group>
 
-      {/* the retail tub, kept by the till */}
-      {TUB && <SlimeTub product={TUB} position={[0.62, 1.05, 0.06]} scale={0.55} />}
+      {/* the cup kept by the till, at the far end of the counter — not between
+          the visitor and the person at the till */}
+      {TUB && <FruitCup product={TUB} position={[0.9, COUNTER_TOP, 0.06]} scale={CUP_SCALE.fruit} />}
 
       {[0, 1].map((i) => (
-        <mesh key={i} position={[0.02 + i * 0.14, 1.11, -0.3]} rotation={[0, i * 0.4, 0]} castShadow raycast={NO_HIT}>
+        <mesh key={i} position={[0.02 + i * 0.14, COUNTER_TOP + 0.06, -0.3]} rotation={[0, i * 0.4, 0]} castShadow raycast={NO_HIT}>
           <boxGeometry args={[0.2, 0.12, 0.1]} />
           <meshStandardMaterial color="#e3cdb0" roughness={0.85} />
         </mesh>
@@ -588,82 +792,95 @@ export function Checkout() {
 /* --------------------------------------------------------- shopping trolley */
 
 const CAGE_RAILS = [0.06, 0.2, 0.34];
-/** How it sits when nobody has hold of it. */
+/** How it stands. Nobody wheels it about any more; it is the shop's basket. */
 const PARK_ROTATION = -0.55;
+/** Cap on the order stack, matching the Lab's trolley. */
+const MAX_CRATES = 6;
 
 /**
- * A proper shopping trolley. The cage is suggested with horizontal rails and
- * corner posts rather than modelled as mesh — at this scale the rails are what
- * the eye reads as wire.
+ * The shop's trolley: the same order stack the Lab's one carries, parked on the
+ * floor where a customer would have left it.
+ *
+ * It used to follow whoever was flagged as pushing it. That is gone — it stands
+ * still, and what it holds is the cart, so adding a jar in either room drops a
+ * crate into whichever trolley you happen to be standing next to.
+ *
+ * The cage is suggested with horizontal rails and corner posts rather than
+ * modelled as mesh: at this scale the rails are what the eye reads as wire.
  */
 export function ShoppingTrolley() {
   const { reducedMotion } = useLabQuality();
+  const lines = useCartLines();
   const rootRef = useRef<THREE.Group>(null);
   const wheelsRef = useRef<THREE.Group>(null);
   const bodyRef = useRef<THREE.Group>(null);
+  const cratesRef = useRef<THREE.Group>(null);
+  const hovered = useIsHovered('station', 'marttrolley');
+  const selected = useIsSelected('station', 'marttrolley');
+  const active = hovered || selected;
 
   const [parkX, , parkZ] = MART_POS.trolley;
-  const park = useMemo(() => new THREE.Vector3(parkX, FLOOR_TOP_Y, parkZ), [parkX, parkZ]);
-  const goal = useMemo(() => new THREE.Vector3(), []);
-  const previous = useRef(new THREE.Vector3(parkX, FLOOR_TOP_Y, parkZ));
+
+  useEffect(() => {
+    const group = rootRef.current;
+    if (!group) return;
+    registerAnchor('station', 'marttrolley', group);
+    return () => {
+      unregisterAnchor('station', 'marttrolley');
+      document.body.style.cursor = 'auto';
+    };
+  }, []);
+
+  // one crate per unit, not per line, so a repeat purchase visibly stacks up
+  const crates = lines
+    .flatMap((line) => Array.from({ length: line.quantity }, () => line.productId))
+    .slice(-MAX_CRATES);
 
   useFrame(({ clock }, delta) => {
-    const root = rootRef.current;
-    if (!root) return;
     const step = Math.min(delta, 1 / 30);
     const t = clock.getElapsedTime();
 
-    /*
-      Whoever is flagged as pushing gets the trolley: it sits a stride in front
-      of them, square to the way they are facing, and eases back to its parking
-      spot by the door the moment they let go. Damping rather than parenting, so
-      it never snaps between the two and needs no reparenting mid-scene.
-    */
-    const pusher = readTrolleyPusher();
-    const handler = pusher ? getAnchor('worker', pusher) : undefined;
-
-    let goalRotation = PARK_ROTATION;
-    if (handler) {
-      goalRotation = handler.rotation.y;
-      goal
-        .set(Math.sin(goalRotation), 0, Math.cos(goalRotation))
-        .multiplyScalar(0.62)
-        .add(handler.position);
-      goal.y = FLOOR_TOP_Y;
-    } else {
-      goal.copy(park);
-    }
-
-    root.position.x = THREE.MathUtils.damp(root.position.x, goal.x, 4.5, step);
-    root.position.z = THREE.MathUtils.damp(root.position.z, goal.z, 4.5, step);
-    root.position.y = FLOOR_TOP_Y;
-
-    let turn = (goalRotation - root.rotation.y) % (Math.PI * 2);
-    if (turn > Math.PI) turn -= Math.PI * 2;
-    if (turn < -Math.PI) turn += Math.PI * 2;
-    root.rotation.y += turn * Math.min(1, step * 4);
+    cratesRef.current?.children.forEach((crate, index) => {
+      // settle in with a small drop when a crate first appears
+      crate.position.y = THREE.MathUtils.damp(crate.position.y, index * 0.2, 6, step);
+      if (!reducedMotion) crate.rotation.y = Math.sin(t * 0.5 + index) * 0.05;
+    });
 
     if (reducedMotion) return;
-
-    // how far it actually moved this frame drives the castors and the sway
-    const travelled = previous.current.distanceTo(root.position);
-    previous.current.copy(root.position);
-    const rolling = travelled / Math.max(step, 0.0001);
-
-    if (bodyRef.current) {
-      bodyRef.current.rotation.z = Math.sin(t * 0.6) * 0.006 - Math.min(rolling * 0.04, 0.05);
-    }
+    // parked, so the castors only ever drift
     wheelsRef.current?.children.forEach((wheel, index) => {
-      const spin = wheel.children[1];
-      if (spin) spin.rotation.x -= rolling * step * 9;
-      wheel.rotation.y = rolling > 0.05 ? 0 : Math.sin(t * 0.5 + index) * 0.22;
+      wheel.rotation.y = Math.sin(t * 0.5 + index) * 0.22;
     });
+    if (bodyRef.current) bodyRef.current.rotation.z = Math.sin(t * 0.6) * 0.006;
   });
 
   return (
-    <group ref={rootRef} position={[parkX, FLOOR_TOP_Y, parkZ]} rotation={[0, PARK_ROTATION, 0]}>
+    <group
+      ref={rootRef}
+      position={[parkX, FLOOR_TOP_Y, parkZ]}
+      rotation={[0, PARK_ROTATION, 0]}
+      onPointerOver={(event) => {
+        event.stopPropagation();
+        hoverEntity({ kind: 'station', id: 'marttrolley' });
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        hoverEntity(null);
+        document.body.style.cursor = 'auto';
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+        selectEntity({ kind: 'station', id: 'marttrolley' });
+      }}
+    >
+      <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={active} raycast={NO_HIT}>
+        <ringGeometry args={[0.58, 0.7, 36]} />
+        <meshBasicMaterial color="#e4738f" transparent opacity={selected ? 0.85 : 0.4} />
+      </mesh>
+
       <group ref={bodyRef}>
-        <mesh position={[0, 0.44, 0]} rotation={[0.08, 0, 0]} castShadow receiveShadow raycast={NO_HIT}>
+        {/* the basket floor is the one mesh left pickable, so it can be tapped */}
+        <mesh position={[0, 0.44, 0]} rotation={[0.08, 0, 0]} castShadow receiveShadow>
           <boxGeometry args={[0.62, 0.03, 0.84]} />
           <meshStandardMaterial color={PALETTE.metal} roughness={0.42} metalness={0.5} />
         </mesh>
@@ -712,16 +929,23 @@ export function ShoppingTrolley() {
           <meshStandardMaterial color={PALETTE.berry} roughness={0.6} />
         </mesh>
 
-        {[
-          [-0.14, 0.55, -0.16, '#f4879f'],
-          [0.12, 0.55, -0.02, '#9dc47f'],
-          [-0.02, 0.55, 0.16, '#8ed0e8'],
-        ].map(([px, py, pz, tint], index) => (
-          <mesh key={index} position={[px as number, py as number, pz as number]} castShadow raycast={NO_HIT}>
-            <cylinderGeometry args={[0.1, 0.09, 0.19, 14]} />
-            <meshPhysicalMaterial color={tint as string} roughness={0.28} clearcoat={0.6} />
-          </mesh>
-        ))}
+        {/* what you have bought, boxed */}
+        <group ref={cratesRef} position={[0, 0.47, 0]}>
+          {crates.map((productId, index) => {
+            const product = getProduct(productId);
+            return (
+              <group key={`${productId}-${index}`} position={[0, 0.6, 0]}>
+                <RoundedBox args={[0.42, 0.18, 0.5]} radius={0.035} smoothness={3} castShadow raycast={NO_HIT}>
+                  <meshStandardMaterial color={PALETTE.wood} roughness={0.8} />
+                </RoundedBox>
+                <mesh position={[0, 0.1, 0]} castShadow raycast={NO_HIT}>
+                  <cylinderGeometry args={[0.075, 0.075, 0.055, 14]} />
+                  <meshStandardMaterial color={product?.color ?? PALETTE.berry} roughness={0.35} />
+                </mesh>
+              </group>
+            );
+          })}
+        </group>
       </group>
 
       <group ref={wheelsRef}>
@@ -747,9 +971,268 @@ export function ShoppingTrolley() {
   );
 }
 
+/* ------------------------------------------------------- table and radio */
+
+/**
+ * The corner by the return door: a side table with somebody's mug going cold on
+ * it and a valve radio that still works.
+ *
+ * Three stacked stock boxes stood here, which said "storage" and nothing else.
+ * This says somebody sits here. The table top doubles as the cat's second
+ * perch — the boxes were the first one, and he was not going to give it up.
+ */
+function SideTable() {
+  const year = useRadioYear();
+  const needleRef = useRef<THREE.Group>(null);
+  const glowRef = useRef<THREE.MeshStandardMaterial>(null);
+  const rootRef = useRef<THREE.Group>(null);
+  const hovered = useIsHovered('station', 'radio');
+  const selected = useIsSelected('station', 'radio');
+  const { reducedMotion } = useLabQuality();
+
+  const [tx, , tz] = MART_POS.sideTable;
+  const tuning = transmissionFor(year);
+  // where the needle sits on the dial, as a fraction of the band
+  const sweep = (year - RADIO_MIN) / (RADIO_MAX - RADIO_MIN);
+
+  useEffect(() => {
+    const group = rootRef.current;
+    if (!group) return;
+    registerAnchor('station', 'radio', group);
+    return () => {
+      unregisterAnchor('station', 'radio');
+      document.body.style.cursor = 'auto';
+    };
+  }, []);
+
+  useFrame(({ clock }, delta) => {
+    const step = Math.min(delta, 1 / 30);
+    // the needle eases across rather than snapping, the way a real one would
+    if (needleRef.current) {
+      const target = (0.5 - sweep) * 1.7;
+      needleRef.current.rotation.z = THREE.MathUtils.damp(needleRef.current.rotation.z, target, 8, step);
+    }
+    if (glowRef.current) {
+      // the dial lamp swells on a strong station and gutters on a weak one
+      const flicker = reducedMotion ? 1 : 0.82 + Math.sin(clock.getElapsedTime() * 7.3) * 0.18 * (1 - tuning.signal);
+      glowRef.current.emissiveIntensity = (0.25 + tuning.signal * 1.05) * flicker;
+    }
+  });
+
+  return (
+    <group ref={rootRef} position={[tx, FLOOR_TOP_Y, tz]} rotation={[0, 0.24, 0]}>
+      {/* table */}
+      <RoundedBox args={[0.88, 0.06, 0.62]} radius={0.02} smoothness={3} position={[0, 0.6, 0]} castShadow receiveShadow raycast={NO_HIT}>
+        <meshStandardMaterial color={PALETTE.wood} roughness={0.78} />
+      </RoundedBox>
+      <mesh position={[0, 0.545, 0]} raycast={NO_HIT}>
+        <boxGeometry args={[0.76, 0.05, 0.5]} />
+        <meshStandardMaterial color={PALETTE.woodDark} roughness={0.85} />
+      </mesh>
+      {[
+        [-0.37, -0.24],
+        [0.37, -0.24],
+        [-0.37, 0.24],
+        [0.37, 0.24],
+      ].map(([lx, lz], index) => (
+        <mesh key={index} position={[lx, 0.27, lz]} castShadow raycast={NO_HIT}>
+          <cylinderGeometry args={[0.022, 0.03, 0.54, 10]} />
+          <meshStandardMaterial color={PALETTE.woodDark} roughness={0.8} />
+        </mesh>
+      ))}
+
+      {/* the mug, going cold */}
+      <group position={[0.26, 0.63, -0.14]} rotation={[0, -0.5, 0]}>
+        <mesh position={[0, 0.008, 0]} castShadow receiveShadow raycast={NO_HIT}>
+          <cylinderGeometry args={[0.085, 0.08, 0.016, 18]} />
+          <meshStandardMaterial color="#fdfaf4" roughness={0.45} />
+        </mesh>
+        <mesh position={[0, 0.075, 0]} castShadow raycast={NO_HIT}>
+          <cylinderGeometry args={[0.058, 0.053, 0.12, 18]} />
+          <meshStandardMaterial color="#fdfaf4" roughness={0.4} />
+        </mesh>
+        <mesh position={[0, 0.048, 0]} raycast={NO_HIT}>
+          <cylinderGeometry args={[0.0595, 0.055, 0.038, 18]} />
+          <meshStandardMaterial color={PALETTE.mint} roughness={0.5} />
+        </mesh>
+        <mesh position={[0, 0.128, 0]} raycast={NO_HIT}>
+          <cylinderGeometry args={[0.049, 0.049, 0.01, 18]} />
+          <meshStandardMaterial color="#5b3a26" roughness={0.28} />
+        </mesh>
+        <mesh position={[0.064, 0.075, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow raycast={NO_HIT}>
+          <torusGeometry args={[0.032, 0.009, 8, 14, Math.PI * 1.1]} />
+          <meshStandardMaterial color="#fdfaf4" roughness={0.4} />
+        </mesh>
+      </group>
+
+      {/* the set */}
+      <group
+        position={[-0.21, 0.63, -0.15]}
+        rotation={[0, 0.42, 0]}
+        onPointerOver={(event) => {
+          event.stopPropagation();
+          hoverEntity({ kind: 'station', id: 'radio' });
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={() => {
+          hoverEntity(null);
+          document.body.style.cursor = 'auto';
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          setRadioOpen(true);
+        }}
+      >
+        {/* bakelite case — the one mesh that answers the pointer */}
+        <group position={[0,.12,0]} scale={[.2,.2,.2]}><Housing width={1.7} height={1.2} depth={.85} color="#6b452e"/></group>
+        <mesh position={[0, 0.245, 0]} raycast={NO_HIT}>
+          <boxGeometry args={[0.29, 0.015, 0.13]} />
+          <meshStandardMaterial color="#54341f" roughness={0.5} />
+        </mesh>
+
+        {/* speaker cloth, with the slats that read as a grille */}
+        <mesh position={[-0.07, 0.14, 0.088]} raycast={NO_HIT}>
+          <boxGeometry args={[0.15, 0.14, 0.01]} />
+          <meshStandardMaterial color="#c9b48c" roughness={0.95} />
+        </mesh>
+        {[-0.05, -0.025, 0, 0.025, 0.05].map((offset) => (
+          <mesh key={offset} position={[-0.07 + offset, 0.14, 0.094]} raycast={NO_HIT}>
+            <boxGeometry args={[0.008, 0.13, 0.006]} />
+            <meshStandardMaterial color="#7a5f3d" roughness={0.9} />
+          </mesh>
+        ))}
+
+        {/* the dial: a lit face with a needle across it */}
+        <mesh position={[0.085, 0.155, 0.088]} raycast={NO_HIT}>
+          <boxGeometry args={[0.12, 0.075, 0.01]} />
+          <meshStandardMaterial
+            ref={glowRef}
+            color="#f4e3bd"
+            emissive={tuning.tint}
+            emissiveIntensity={0.5}
+            roughness={0.6}
+          />
+        </mesh>
+        {[-0.04, -0.02, 0, 0.02, 0.04].map((offset) => (
+          <mesh key={offset} position={[0.085 + offset, 0.178, 0.094]} raycast={NO_HIT}>
+            <boxGeometry args={[0.003, 0.014, 0.004]} />
+            <meshStandardMaterial color="#6b452e" roughness={0.8} />
+          </mesh>
+        ))}
+        <group ref={needleRef} position={[0.085, 0.155, 0.096]}>
+          <mesh position={[0, 0, 0]} raycast={NO_HIT}>
+            <boxGeometry args={[0.004, 0.07, 0.004]} />
+            <meshStandardMaterial color="#d94f75" roughness={0.5} />
+          </mesh>
+        </group>
+
+        {/* tuning and volume */}
+        {[-0.11, 0.11].map((kx) => (
+          <mesh key={kx} position={[kx, 0.045, 0.092]} rotation={[Math.PI / 2, 0, 0]} castShadow raycast={NO_HIT}>
+            <cylinderGeometry args={[0.024, 0.026, 0.022, 14]} />
+            <meshStandardMaterial color="#e7d7b6" roughness={0.5} />
+          </mesh>
+        ))}
+
+        {/* aerial, bent where somebody knocked it */}
+        <mesh position={[0.12, 0.3, -0.05]} rotation={[0, 0, -0.22]} castShadow raycast={NO_HIT}>
+          <cylinderGeometry args={[0.004, 0.005, 0.32, 6]} />
+          <meshStandardMaterial color={PALETTE.metal} roughness={0.35} metalness={0.6} />
+        </mesh>
+
+        <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={hovered || selected} raycast={NO_HIT}>
+          <ringGeometry args={[0.22, 0.27, 28]} />
+          <meshBasicMaterial color="#c98f3a" transparent opacity={selected ? 0.85 : 0.45} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
 /* --------------------------------------------------------------- dressing */
 
-/** Entrance mat, stock boxes and a couple of lived-in details. */
+/**
+ * The standing lamp in the corner behind the side table.
+ *
+ * It carries a real light as well as a lit shade — a small point source with a
+ * short falloff, so it pools warmth into the corner the wall lights never reach
+ * rather than lifting the whole room. No shadow map: at this size and intensity
+ * it would cost more than it showed.
+ *
+ * Press it and it goes off, like a lamp. The state is local because nothing
+ * else in the world needs to know — this is a switch on an object, not a
+ * setting, and the whole fixture is the hit target so it can be caught with a
+ * thumb on a phone.
+ */
+function StandingLamp() {
+  const [lx, , lz] = MART_POS.lamp;
+  const [lit, setLit] = useState(true);
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <group
+      position={[lx, FLOOR_TOP_Y, lz]}
+      onPointerOver={(event) => {
+        event.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = 'auto';
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+        setLit((on) => !on);
+      }}
+    >
+      {/* one forgiving hit volume down the whole lamp, rather than asking for
+          a tap on a 4cm pole */}
+      <mesh visible={false} position={[0, 0.95, 0]}>
+        <cylinderGeometry args={[0.3, 0.3, 1.9, 8]} />
+      </mesh>
+      <mesh position={[0, 0.008, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={hovered} raycast={NO_HIT}>
+        <ringGeometry args={[0.26, 0.32, 28]} />
+        <meshBasicMaterial color="#f0c86a" transparent opacity={0.5} />
+      </mesh>
+      <mesh position={[0, 0.02, 0]} castShadow receiveShadow raycast={NO_HIT}>
+        <cylinderGeometry args={[0.19, 0.22, 0.04, 20]} />
+        <meshStandardMaterial color={PALETTE.metalDark} roughness={0.5} metalness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.78, 0]} castShadow raycast={NO_HIT}>
+        <cylinderGeometry args={[0.017, 0.022, 1.52, 10]} />
+        <meshStandardMaterial color={PALETTE.metal} roughness={0.38} metalness={0.55} />
+      </mesh>
+      {/* a small brass collar where the shade sits, so the pole has a joint */}
+      <mesh position={[0, 1.52, 0]} castShadow raycast={NO_HIT}>
+        <cylinderGeometry args={[0.03, 0.03, 0.05, 12]} />
+        <meshStandardMaterial color="#c9a25e" roughness={0.4} metalness={0.6} />
+      </mesh>
+      {/* the shade, lit from inside */}
+      <mesh position={[0, 1.72, 0]} castShadow raycast={NO_HIT}>
+        <cylinderGeometry args={[0.2, 0.27, 0.32, 24, 1, true]} />
+        <meshStandardMaterial
+          color={lit ? '#f6ead2' : '#e6ddcc'}
+          emissive="#ffd9a2"
+          emissiveIntensity={lit ? 0.55 : 0}
+          roughness={0.85}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      <mesh position={[0, 1.57, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_HIT}>
+        <meshStandardMaterial
+          color={lit ? '#ffe6bd' : '#cfc6b6'}
+          emissive="#ffcf90"
+          emissiveIntensity={lit ? 0.9 : 0}
+        />
+        <circleGeometry args={[0.26, 22]} />
+      </mesh>
+      {lit && <pointLight position={[0, 1.6, 0]} intensity={2.6} distance={4.4} decay={2} color="#ffd6a0" />}
+    </group>
+  );
+}
+
+/** Entrance mat, the corner lamp and a couple of lived-in details. */
 export function ShopDressing() {
   return (
     <group>
@@ -763,42 +1246,426 @@ export function ShopDressing() {
         <meshStandardMaterial color="#d9c3ae" roughness={0.95} />
       </mesh>
 
-      <group position={[MART_POS.stock[0], FLOOR_TOP_Y, MART_POS.stock[2]]}>
-        {[
-          [0, 0.24, 0, 0.2],
-          [0.05, 0.7, 0.06, -0.15],
-          [0.62, 0.2, -0.18, 0.42],
-        ].map(([x, y, z, rot], index) => (
-          <RoundedBox
-            key={index}
-            args={[0.62, index === 2 ? 0.4 : 0.44, 0.5]}
-            radius={0.04}
-            smoothness={3}
-            position={[x, y, z]}
-            rotation={[0, rot, 0]}
-            castShadow
-            receiveShadow
-            raycast={NO_HIT}
-          >
-            <meshStandardMaterial color={index % 2 ? PALETTE.woodDark : PALETTE.wood} roughness={0.85} />
-          </RoundedBox>
-        ))}
-        <mesh position={[0.05, 0.94, 0.06]} rotation={[0, 0.5, 0]} raycast={NO_HIT}>
-          <boxGeometry args={[0.16, 0.03, 0.04]} />
-          <meshStandardMaterial color={PALETTE.berry} roughness={0.5} />
-        </mesh>
-      </group>
+      <SideTable />
+      <StandingLamp />
 
-      <group position={[-4.4, FLOOR_TOP_Y, 1.9]} rotation={[0, 0, 0.14]}>
-        <mesh position={[0, 0.75, 0]} castShadow raycast={NO_HIT}>
-          <cylinderGeometry args={[0.028, 0.028, 1.5, 8]} />
-          <meshStandardMaterial color={PALETTE.woodDark} roughness={0.8} />
+    </group>
+  );
+}
+
+/* ------------------------------------------------------------------ monstera */
+
+/**
+ * One monstera leaf as a flat shape: an elongated blade whose width is pinched
+ * almost to the midrib at a few points down each side. Those pinches are what
+ * read as the plant's splits — cutting real holes would need a shape with
+ * holes per leaf, and at this size the silhouette does all the work.
+ */
+function monsteraLeaf(length: number, width: number, notches: number[]): THREE.ShapeGeometry {
+  const steps = 34;
+  const profile = (t: number) => Math.sin(Math.PI * Math.min(1, t * 1.08)) ** 0.7;
+  const pinch = (t: number, offset: number) => {
+    let factor = 1;
+    for (const notch of notches) {
+      const distance = Math.abs(t - (notch + offset));
+      if (distance < 0.06) factor = Math.min(factor, 0.16 + (distance / 0.06) * 0.84);
+    }
+    return factor;
+  };
+
+  const points: THREE.Vector2[] = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
+    points.push(new THREE.Vector2(width * profile(t) * pinch(t, 0), t * length));
+  }
+  for (let i = steps; i >= 0; i -= 1) {
+    const t = i / steps;
+    points.push(new THREE.Vector2(-width * profile(t) * pinch(t, 0.04), t * length));
+  }
+  return new THREE.ShapeGeometry(new THREE.Shape(points), 6);
+}
+
+/** Each leaf: [length, width, tilt, spin, lean, notch positions]. */
+const MONSTERA_LEAVES: Array<[number, number, number, number, number, number[]]> = [
+  [0.72, 0.34, -0.5, 0.2, 0.16, [0.34, 0.62, 0.84]],
+  [0.64, 0.3, -0.42, 2.3, -0.22, [0.4, 0.7]],
+  [0.58, 0.28, -0.62, 4.1, 0.26, [0.36, 0.66, 0.88]],
+  [0.5, 0.24, -0.34, 5.4, -0.12, [0.44, 0.74]],
+  [0.44, 0.21, -0.72, 1.2, 0.3, [0.4, 0.72]],
+];
+
+/** A monstera in a woven pot — the one big leafy thing in an otherwise tidy shop. */
+export function Monstera() {
+  const leavesRef = useRef<THREE.Group>(null);
+  const { reducedMotion } = useLabQuality();
+
+  const geometries = useMemo(
+    () => MONSTERA_LEAVES.map(([length, width, , , , notches]) => monsteraLeaf(length, width, notches)),
+    [],
+  );
+  useEffect(() => () => geometries.forEach((geometry) => geometry.dispose()), [geometries]);
+
+  useFrame(({ clock }) => {
+    if (!leavesRef.current || reducedMotion) return;
+    const t = clock.getElapsedTime();
+    leavesRef.current.children.forEach((leaf, index) => {
+      // each blade drifts on its own phase, the way a big leaf catches a draught
+      leaf.rotation.z = MONSTERA_LEAVES[index][4] + Math.sin(t * 0.4 + index * 1.3) * 0.05;
+    });
+  });
+
+  const [x, , z] = MART_POS.monstera;
+
+  return (
+    <group position={[x, FLOOR_TOP_Y, z]}>
+      {/* woven pot */}
+      <mesh position={[0, 0.28, 0]} castShadow receiveShadow raycast={NO_HIT}>
+        <cylinderGeometry args={[0.32, 0.24, 0.56, 22]} />
+        <meshStandardMaterial color="#d9bf9f" roughness={0.9} />
+      </mesh>
+      {[0.14, 0.3, 0.46].map((y) => (
+        <mesh key={y} position={[0, y, 0]} raycast={NO_HIT}>
+          <cylinderGeometry args={[0.325 - (0.46 - y) * 0.14, 0.325 - (0.46 - y) * 0.14, 0.035, 22]} />
+          <meshStandardMaterial color="#c9ac8b" roughness={0.92} />
         </mesh>
-        <mesh position={[0, 0.08, 0]} castShadow raycast={NO_HIT}>
-          <capsuleGeometry args={[0.11, 0.1, 4, 10]} />
-          <meshStandardMaterial color="#c9d0da" roughness={0.9} />
-        </mesh>
+      ))}
+      <mesh position={[0, 0.57, 0]} raycast={NO_HIT}>
+        <cylinderGeometry args={[0.3, 0.3, 0.03, 22]} />
+        <meshStandardMaterial color="#6b5a48" roughness={0.98} />
+      </mesh>
+
+      <group ref={leavesRef} position={[0, 0.58, 0]}>
+        {MONSTERA_LEAVES.map(([length, , tilt, spin, lean], index) => (
+          <group key={index} rotation={[0, spin, lean]}>
+            {/* stalk */}
+            <mesh
+              position={[0, length * 0.42, 0]}
+              rotation={[tilt * 0.5, 0, 0]}
+              castShadow
+              raycast={NO_HIT}
+            >
+              <cylinderGeometry args={[0.016, 0.022, length * 0.9, 7]} />
+              <meshStandardMaterial color="#5f8c48" roughness={0.8} />
+            </mesh>
+            {/* blade */}
+            <mesh
+              geometry={geometries[index]}
+              position={[0, length * 0.8, length * 0.16]}
+              rotation={[tilt, 0, 0]}
+              castShadow
+              raycast={NO_HIT}
+            >
+              <meshStandardMaterial
+                color={index % 2 ? '#4f7f3d' : '#5f9c4a'}
+                roughness={0.62}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+          </group>
+        ))}
       </group>
     </group>
   );
 }
+
+/* ---------------------------------------------------------------- shop cat */
+
+/**
+ * Where the cat goes and what it does there. `y` is the surface it stands on, so
+ * a stop higher than the floor is reached by jumping rather than walking.
+ */
+interface CatStop {
+  id: string;
+  at: [number, number];
+  node: number;
+  y: number;
+  dwell: [number, number];
+  action: 'sleep' | 'sit' | 'watch' | 'hide';
+  facing?: number;
+  weight?: number;
+}
+
+/** The checkout's top surface — where the till, the tub and a sitting cat all stand. */
+const COUNTER_TOP = 0.8;
+
+/**
+ * The cat's corridor: a line across the open middle of the shop, from the
+ * counter end to the corner behind the monstera. It never walks anywhere else,
+ * which is what keeps it out of the fixtures.
+ */
+const CAT_LANE: [number, number][] = [
+  [2.9, -0.6],
+  [1.6, 0.1],
+  [0.9, 0.5],
+  [-0.6, -0.5],
+  [-2.4, -1.3],
+  [-3.4, -1.45],
+  [-4.3, -1.3],
+];
+
+/**
+ * And the places worth going, hung off that corridor. It used to walk them in a
+ * fixed cycle, which you could set a watch by; now it picks — weighted, so it is
+ * mostly asleep on the rug and occasionally up somewhere it should not be, which
+ * is the correct distribution for a cat.
+ *
+ * Every stop is clear of the keeper's own: the two of them cross the floor, which is
+ * what a shop looks like, but they never stand in the same half metre.
+ */
+const CAT_STOPS: CatStop[] = [
+  { id: 'rug', at: [0.9, 0.5], node: 2, y: FLOOR_TOP_Y, dwell: [12, 20], action: 'sleep', facing: -0.9, weight: 3 },
+  { id: 'counter', at: [3.6, -1.9], node: 0, y: COUNTER_TOP, dwell: [7, 12], action: 'sit', facing: 0.3, weight: 2 },
+  // On the floor beside the table, not on it — the radio and the mug live up
+  // there and he was sitting on both.
+  { id: 'corner', at: [-3.7, -1.9], node: 5, y: FLOOR_TOP_Y, dwell: [5, 9], action: 'sit', facing: 1.4, weight: 2 },
+  { id: 'hide', at: [-4.45, -1.15], node: 6, y: FLOOR_TOP_Y, dwell: [8, 14], action: 'hide', facing: 1.5, weight: 2 },
+  { id: 'east', at: [2.9, -0.6], node: 0, y: FLOOR_TOP_Y, dwell: [1.5, 3.5], action: 'watch' },
+  { id: 'middle', at: [-0.6, -0.5], node: 3, y: FLOOR_TOP_Y, dwell: [1.5, 3.5], action: 'watch' },
+  { id: 'west', at: [-2.4, -1.3], node: 4, y: FLOOR_TOP_Y, dwell: [1.5, 3], action: 'watch' },
+];
+
+const CAT_SPEED = 0.62;
+const CAT_ARRIVE = 0.06;
+const JUMP_SECONDS = 0.62;
+
+function shortestTurn(from: number, to: number): number {
+  let delta = (to - from) % (Math.PI * 2);
+  if (delta > Math.PI) delta -= Math.PI * 2;
+  if (delta < -Math.PI) delta += Math.PI * 2;
+  return delta;
+}
+
+/**
+ * The shop cat.
+ *
+ * It walks its round, jumps up onto the counter and the stock boxes, and hides
+ * in the corner — driven the same way the characters are, by a hand-authored
+ * loop advanced only by speed x delta, so it can never end up somewhere the
+ * route did not send it. Height changes are jumps: a parabola between the two
+ * surfaces.
+ *
+ * This decides; it does not draw. Each frame it writes a `CatPose`, and the
+ * Mochi cat model in `CatModel` reads it — walking, sitting, sleeping and the
+ * stretch of a jump all come out of those four numbers.
+ *
+ * Purely decorative. It keeps the interaction hierarchy intact, where only
+ * workers, machines, stations and products answer the pointer.
+ */
+export function ShopCat() {
+  const rootRef = useRef<THREE.Group>(null);
+  const hovered = useIsHovered('station', 'oyen');
+  const selected = useIsSelected('station', 'oyen');
+  /** What the model reads each frame. */
+  const catPose = useMemo(createCatPose, []);
+  const { reducedMotion } = useLabQuality();
+
+  /** Where it is headed, and the corridor legs left to get there. */
+  const here = useRef<CatStop>(CAT_STOPS[0]);
+  const legs = useRef<[number, number][]>([]);
+  const recent = useRef<string[]>([]);
+  const walking = useRef(false);
+  const dwellUntil = useRef(0);
+  const started = useRef(false);
+  const jump = useRef<{
+    from: THREE.Vector3;
+    to: THREE.Vector3;
+    t: number;
+    /** True when the arc lands on the leg's target rather than partway. */
+    consumes: boolean;
+    final: boolean;
+  } | null>(null);
+  /** 1 = up on all fours, 0 = curled on the floor. */
+  const upright = useRef(0);
+  const sitting = useRef(0);
+  const speed = useRef(0);
+
+  useEffect(() => {
+    const group = rootRef.current;
+    if (!group) return;
+    registerAnchor('station', 'oyen', group);
+    return () => {
+      unregisterAnchor('station', 'oyen');
+      document.body.style.cursor = 'auto';
+    };
+  }, []);
+
+  /** Chooses somewhere new and lays out the walk to it. */
+  const wanderOff = () => {
+    const from = here.current;
+    const next = pickStop(CAT_STOPS, recent.current);
+    legs.current = planWalk(CAT_LANE, from, next);
+    here.current = next;
+    recent.current = [from.id, ...recent.current].slice(0, 2);
+    walking.current = true;
+  };
+
+  useFrame(({ clock }, delta) => {
+    const root = rootRef.current;
+    if (!root) return;
+    const step = Math.min(delta, 1 / 30);
+    const elapsed = clock.getElapsedTime();
+
+    if (!started.current) {
+      const first = CAT_STOPS[0];
+      here.current = first;
+      root.position.set(first.at[0], first.y, first.at[1]);
+      root.rotation.y = first.facing ?? 0;
+      dwellUntil.current = elapsed + rollDwell(first);
+      started.current = true;
+    }
+
+    const stop = here.current;
+    let wantUpright = 1;
+    let wantSitting = 0;
+    let moving = 0;
+    let facing = root.rotation.y;
+
+    /** Settles onto whatever it has just reached. */
+    const arrive = () => {
+      walking.current = false;
+      dwellUntil.current = elapsed + rollDwell(stop);
+    };
+
+    // ---- mid-jump --------------------------------------------------------
+    if (jump.current) {
+      const arc = jump.current;
+      arc.t = Math.min(1, arc.t + step / JUMP_SECONDS);
+      root.position.lerpVectors(arc.from, arc.to, arc.t);
+      root.position.y += Math.sin(arc.t * Math.PI) * 0.42;
+      wantUpright = 1;
+      if (arc.t >= 1) {
+        root.position.copy(arc.to);
+        const { consumes, final } = arc;
+        jump.current = null;
+        if (final) {
+          legs.current = [];
+          arrive();
+        } else if (consumes) {
+          legs.current.shift();
+        }
+        // otherwise it landed partway along and walks the rest of the leg
+      }
+    } else if (walking.current && !reducedMotion) {
+      // ---- walking -------------------------------------------------------
+      const leg = legs.current[0];
+
+      if (!leg) {
+        arrive();
+      } else {
+        const last = legs.current.length === 1;
+        const dx = leg[0] - root.position.x;
+        const dz = leg[1] - root.position.z;
+        const distance = Math.hypot(dx, dz);
+        // corridor nodes are all on the floor; only the last leg can be a perch
+        const legY = last ? stop.y : FLOOR_TOP_Y;
+
+        /*
+          Height changes are jumps in both directions, and the two are not
+          symmetric. It gathers itself and springs the last stride *up* onto a
+          surface — but coming *down* it goes as soon as it sets off, landing
+          partway along and walking the rest, because a cat does not shuffle to
+          the edge of a counter and step off.
+        */
+        if (legY > root.position.y + 0.05 && distance < 0.75) {
+          jump.current = {
+            from: root.position.clone(),
+            to: new THREE.Vector3(leg[0], legY, leg[1]),
+            t: 0,
+            consumes: true,
+            final: last,
+          };
+        } else if (legY < root.position.y - 0.05) {
+          const near = distance <= 0.7;
+          const reach = Math.min(0.7, distance);
+          jump.current = {
+            from: root.position.clone(),
+            to: near
+              ? new THREE.Vector3(leg[0], legY, leg[1])
+              : new THREE.Vector3(
+                  root.position.x + (dx / distance) * reach,
+                  legY,
+                  root.position.z + (dz / distance) * reach,
+                ),
+            t: 0,
+            consumes: near,
+            final: near && last,
+          };
+          facing = Math.atan2(dx, dz);
+        } else if (distance <= CAT_ARRIVE) {
+          root.position.x = leg[0];
+          root.position.z = leg[1];
+          legs.current.shift();
+          if (legs.current.length === 0) arrive();
+        } else {
+          const advance = Math.min(CAT_SPEED * step, distance);
+          root.position.x += (dx / distance) * advance;
+          root.position.z += (dz / distance) * advance;
+          facing = Math.atan2(dx, dz);
+          moving = 1;
+        }
+      }
+    } else {
+      // ---- dwelling ------------------------------------------------------
+      facing = stop.facing ?? root.rotation.y;
+      if (stop.action === 'sleep') wantUpright = 0;
+      else if (stop.action === 'hide') wantUpright = 0.22;
+      else if (stop.action === 'sit') wantSitting = 1;
+
+      if (!reducedMotion && elapsed >= dwellUntil.current) wanderOff();
+    }
+
+    // turn toward travel before committing to it, the way an animal does
+    root.rotation.y += shortestTurn(root.rotation.y, facing) * Math.min(1, step * 5);
+
+    upright.current = THREE.MathUtils.damp(upright.current, wantUpright, 4, step);
+    sitting.current = THREE.MathUtils.damp(sitting.current, wantSitting, 5, step);
+    speed.current = THREE.MathUtils.damp(speed.current, moving, 6, step);
+    // hand the decision to the model, which does the drawing
+    catPose.up = upright.current;
+    catPose.sit = sitting.current;
+    catPose.run = speed.current;
+    catPose.airborne = jump.current !== null;
+  });
+
+  return (
+    <group
+      ref={rootRef}
+      position={[0.9, FLOOR_TOP_Y, 0.5]}
+      onPointerOver={(event) => {
+        event.stopPropagation();
+        hoverEntity({ kind: 'station', id: 'oyen' });
+        // his own voice, not the workers' mumble — see meow() in lib/audio
+        meow();
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        hoverEntity(null);
+        document.body.style.cursor = 'auto';
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+        selectEntity({ kind: 'station', id: 'oyen' });
+      }}
+    >
+      {/* forgiving hit volume — he is a small cat in a big room */}
+      <mesh visible={false} position={[0, 0.2, 0]}>
+        <sphereGeometry args={[0.32, 8, 6]} />
+      </mesh>
+      <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={hovered || selected} raycast={NO_HIT}>
+        <ringGeometry args={[0.3, 0.37, 28]} />
+        <meshBasicMaterial color="#dda86a" transparent opacity={selected ? 0.85 : 0.45} />
+      </mesh>
+      {/*
+        Its own Suspense boundary, as Bibi has in the Lab: the rest of the shop
+        does not wait on the cat's file, and until it arrives the controller
+        above simply walks an unseen cat along its route.
+      */}
+      <Suspense fallback={null}>
+        <CatModel pose={catPose} />
+      </Suspense>
+    </group>
+  );
+}
+
+/* -------------------------------------------------------------------- mural */
+

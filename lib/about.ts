@@ -64,7 +64,7 @@ export const ABOUT_CONTENT: AboutBlock[] = [
   },
   {
     type: 'para',
-    text: 'Same jars, same basket, the same SB COIN in your pocket. Only the room changes.',
+    text: 'Same jars, same basket, the same cart. Only the room changes.',
   },
   { type: 'lead', text: 'And yes, you can take the Lab with you.' },
   {

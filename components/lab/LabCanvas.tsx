@@ -7,8 +7,10 @@ import { HOME_FOV, HOME_POSITION } from '@/lib/cameraFraming';
 import { useQuality } from '@/lib/quality';
 import { dismissHint, hoverEntity, selectEntity, setView } from '@/lib/interaction';
 import { resolveInitialRoom, stopWorldTimers, useRoom, useRoomResolved } from '@/lib/world';
+import { startShiftClock } from '@/lib/shift';
 import { QualityProvider } from './QualityContext';
 import { LabScene } from './LabScene';
+import { ShiftSky } from './ShiftSky';
 import { MartScene } from '@/components/mart/MartScene';
 
 function detectWebGL(): boolean {
@@ -40,6 +42,9 @@ export function LabCanvas() {
   const resolved = useRoomResolved();
   const [support, setSupport] = useState<'checking' | 'ok' | 'missing'>('checking');
   const [contextLost, setContextLost] = useState(false);
+
+  // the shift clock runs for as long as the world does, in either room
+  useEffect(() => startShiftClock(), []);
 
   useEffect(() => {
     setSupport(detectWebGL() ? 'ok' : 'missing');
@@ -92,7 +97,12 @@ export function LabCanvas() {
         {/* The mart is a smaller room seen from further back on a phone, so its
             fog has to start later or the far wall greys out. */}
         <fog attach="fog" args={room === 'lab' ? ['#f2e9de', 22, 44] : ['#f2e9de', 30, 64]} />
-        <Suspense fallback={null}>{room === 'lab' ? <LabScene /> : <MartScene />}</Suspense>
+        {/* Day and night belong to the world, not to a room, so this sits above
+            both of them and tints the studio, the fog and the environment. */}
+        <ShiftSky />
+        <Suspense fallback={null}>
+          {room === 'lab' ? <LabScene /> : <MartScene />}
+        </Suspense>
       </QualityProvider>
     </Canvas>
   );

@@ -8,7 +8,7 @@ import { hoverEntity, selectEntity } from './interaction';
  *
  * The Lab is the large desktop environment; SB Mart is the compact shop behind
  * the door in its back wall. Only one is mounted at a time — they share the
- * canvas, the cart, the SB COIN wallet and every product record, so walking
+ * canvas, the cart and every product record, so walking
  * through the door changes what is rendered and nothing else about the session.
  *
  * `phase` drives the walk-through: the camera dollies at the door while the
@@ -76,7 +76,10 @@ export function resolveInitialRoom(): void {
   const phone =
     window.innerWidth < 820 ||
     (window.matchMedia('(pointer: coarse)').matches && window.innerWidth < 1100);
-  store.set((state) => ({ ...state, room: phone ? 'mart' : 'lab', resolved: true }));
+  // A link can ask for a room, whatever device it is opened on.
+  const asked = new URLSearchParams(window.location.search).get('room');
+  const room: RoomId = asked === 'mart' || asked === 'lab' ? asked : phone ? 'mart' : 'lab';
+  store.set((state) => ({ ...state, room, resolved: true }));
 }
 
 export function stopWorldTimers(): void {

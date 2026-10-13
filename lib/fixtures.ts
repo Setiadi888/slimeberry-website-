@@ -45,8 +45,8 @@ export const STATIONS: StationFixture[] = [
   {
     id: 'packaging',
     name: 'Packaging',
-    step: 'Step 07 of 07',
-    blurb: 'Labelled jars run into the housing at the end of the belt, are boxed, and go straight out to dispatch.',
+    step: 'Step 05 of 07',
+    blurb: 'The belt runs straight through it. Jars go in the west mouth and sealed shippers come out the east one, which is the only place on the line where what you are looking at changes.',
     stats: [
       { label: 'Jar size', value: '150 ml' },
       { label: 'Filled today', value: '46' },
@@ -59,9 +59,9 @@ export const STATIONS: StationFixture[] = [
   {
     id: 'conveyor',
     name: 'Transfer Line',
-    step: 'Step 04 of 07',
+    step: 'The whole line',
     blurb:
-      'Jars push out through the discharge hood in the west wall and ride the belt the length of the floor, through quality control, filling and labelling.',
+      'Jars push out through the discharge hood in the west wall, meet the filling gantry a few metres later, and ride the belt into the packaging tunnel. What comes out the far side is a box, and the box carries on east past QC and labelling.',
     stats: [
       { label: 'Travel', value: '43 s end to end' },
       { label: 'On the belt', value: '10 jars' },
@@ -72,28 +72,28 @@ export const STATIONS: StationFixture[] = [
   {
     id: 'qc',
     name: 'Quality Control',
-    step: 'Step 04 of 07',
-    blurb: 'Every batch passes the scanner arch. Caca checks texture and stretch by hand before it is filled.',
+    step: 'Step 06 of 07',
+    blurb: 'Every batch passes the scanner arch. Texture and stretch are checked by hand, and the desk sits alongside labelling so nothing gets a label it has not earned.',
     stats: [
       { label: 'Checked today', value: '21' },
       { label: 'Rejected', value: '2' },
-      { label: 'Inspector', value: 'Caca' },
+      { label: 'Next to', value: 'Labelling' },
     ],
     productId: 'strawberry',
     accent: '#5aa84c',
     anchorHeight: 2.1,
   },
   {
-    id: 'dispatch',
-    name: 'Dispatch',
+    id: 'trolley',
+    name: 'Order Trolley',
     step: 'Ready to ship',
-    blurb: 'Boxed orders come straight off packaging and stack here, waiting for the afternoon courier.',
+    blurb: 'Everything you add to the cart is boxed and stacked here. Somebody usually wheels it up the line and leaves it somewhere else.',
     stats: [
       { label: 'Packed today', value: '18' },
       { label: 'Next pickup', value: '16:30' },
     ],
     accent: '#c98f3a',
-    anchorHeight: 1.6,
+    anchorHeight: 1.35,
   },
 ];
 
@@ -102,46 +102,53 @@ STATIONS.push(
     id: 'greenhouse',
     name: 'Greenhouse',
     step: 'Step 01 of 07',
-    blurb: 'Mint, basil, strawberry, blueberry and chamomile, grown on site and picked the morning they are used.',
+    blurb: 'Five mystery seeds, thirty possible plants. Watch the leaves unfurl and the little bed labels reveal what has grown. Each harvest makes room for another surprise.',
     stats: [
       { label: 'Beds', value: '5' },
-      { label: 'Picked today', value: '3.1 kg' },
+      { label: 'Botanical collection', value: '30 varieties' },
     ],
     accent: '#6ea45a',
     anchorHeight: 2.7,
   },
   {
-    id: 'gachapon',
-    name: 'Slimeberry Gachapon',
-    step: 'Rewards',
+    id: 'periodic',
+    name: 'The Elements',
+    step: 'Lab wall',
     blurb:
-      'Every order earns one SB COIN. Feed it in, turn the handle, and the machine drops you a capsule with something small and strange inside.',
+      'A lit board of all one hundred and eighteen. Slime is borax and PVA glue, and between them those two are made of five elements and nothing else — press exactly those five and the whole board goes green.',
     stats: [
-      { label: 'Cost', value: '1 SB COIN' },
-      { label: 'Capsules loaded', value: '212' },
-      { label: 'Rarest pull', value: 'Golden Slimeberry' },
+      { label: 'Elements', value: '118' },
+      { label: 'In the recipe', value: '5' },
+      { label: 'Wrong ones', value: 'Turn orange' },
     ],
-    accent: '#e4738f',
-    anchorHeight: 3.3,
+    accent: '#7bbf6a',
+    /*
+      Negative, which no other card is. The camera frames a station by looking at
+      its anchor plus a fixed height, but the *card* hangs off this — and a card
+      floating over the middle of the board would cover the half of the puzzle
+      you are trying to read. This drops it below the box instead.
+    */
+    anchorHeight: -0.45,
   },
   {
-    id: 'texture',
-    name: 'Texture Lab',
-    step: 'Step 03 of 07',
-    blurb: 'A press checks stretch and rebound. Too stiff goes back to the mixer; too loose is held to cure.',
+    id: 'sink',
+    name: 'Hand Sink',
+    step: 'Before and after',
+    blurb:
+      'Catering-grade stainless where the fish tank used to stand: pressed basin, swan-neck mixer, soap on the wall. Whoever is on the mixer or on quality control comes over to wash, and the tap only runs while somebody is standing at it.',
     stats: [
-      { label: 'Target stretch', value: '9.0+' },
-      { label: 'Rebound', value: '0.8 s' },
+      { label: 'Steel', value: '304, like the benches' },
+      { label: 'Tap', value: 'Lever, elbow-worked' },
+      { label: 'Used by', value: 'Everyone, properly' },
     ],
-    productId: 'strawberry',
-    accent: '#5aa84c',
-    anchorHeight: 2.1,
+    accent: '#9aa5ad',
+    anchorHeight: 1.5,
   },
   {
     id: 'filling',
     name: 'Filling',
-    step: 'Step 05 of 07',
-    blurb: 'Approved slime is dosed into jars, 150 ml at a time, straight off the belt.',
+    step: 'Step 04 of 07',
+    blurb: 'Slime is dosed into jars, 150 ml at a time, at the west end of the belt — before the packaging tunnel, because a jar has to be full before it can be boxed.',
     stats: [
       { label: 'Jar size', value: '150 ml' },
       { label: 'Filled today', value: '128' },
@@ -153,7 +160,7 @@ STATIONS.push(
   {
     id: 'labelling',
     name: 'Labelling',
-    step: 'Step 06 of 07',
+    step: 'Step 07 of 07',
     blurb: 'Each jar gets its batch label as it passes — the same number printed on the lid you receive.',
     stats: [
       { label: 'Roll', value: 'Batch SB-024' },
@@ -172,13 +179,26 @@ STATIONS.push(
  */
 STATIONS.push(
   {
+    id: 'staffdoor',
+    name: 'Staff Entrance',
+    step: 'Shift change',
+    blurb: 'Shut for the whole of a shift. It slides open twice a cycle, for the few minutes it takes one crew to walk out and the next to walk in — and whenever you press it, which calls the other three in early.',
+    stats: [
+      { label: 'Opens', value: 'At the handover, or on a press' },
+      { label: 'Leads to', value: 'The staff corridor' },
+      { label: 'Crews', value: 'Day and night' },
+    ],
+    accent: '#f0c86a',
+    anchorHeight: 2.8,
+  },
+  {
     id: 'martdoor',
     name: 'SB Mart',
     step: 'Through the door',
     blurb: 'The little shop behind the factory wall. Same jars, colder, with someone at the till.',
     stats: [
       { label: 'Open', value: 'Every day' },
-      { label: 'Cashier', value: 'Dilan' },
+      { label: 'Till', value: 'Staffed round the clock' },
     ],
     accent: '#4e9fbe',
     anchorHeight: 2.9,
@@ -187,7 +207,7 @@ STATIONS.push(
     id: 'labdoor',
     name: 'Slimeberry Lab',
     step: 'Back through the door',
-    blurb: 'Back out onto the factory floor — the line, the greenhouse and the Gachapon.',
+    blurb: 'Back out onto the factory floor — the line, the greenhouse and the fish tank.',
     stats: [{ label: 'Leads to', value: 'The factory' }],
     accent: '#e4738f',
     anchorHeight: 2.9,
@@ -197,7 +217,7 @@ STATIONS.push(
     name: 'The Record Cabinet',
     step: 'SB Mart',
     blurb:
-      'Dilan built the shelves himself. Tap the turntable and the shop stereo comes on — tap it again and the room goes quiet.',
+      'The keepers built the shelves themselves. Tap the turntable and the shop stereo comes on — tap it again and the room goes quiet.',
     stats: [
       { label: 'Speaker', value: 'Built in' },
       { label: 'Now playing', value: 'Side A' },
@@ -216,19 +236,68 @@ STATIONS.push(
     ],
     productId: 'strawberry',
     accent: '#d94f75',
-    anchorHeight: 2.5,
+    anchorHeight: 2.3,
+  },
+  {
+    id: 'seriesisland',
+    name: 'The Series Island',
+    step: 'SB Mart',
+    blurb:
+      'All three lines on one fixture, in their printed boxes: boba series, fruit series and dessert world, left to right, each bay in its own colour under its own header. They had a table, a flight of steps and a podium between them until somebody pointed out that the shop is not that big.',
+    stats: [
+      { label: 'Lines', value: '3' },
+      { label: 'Boxes', value: '16' },
+      { label: 'Mixed up', value: 'Never' },
+    ],
+    productId: 'fruit-pineapple',
+    accent: '#7cc62b',
+    anchorHeight: 1.9,
   },
   {
     id: 'checkout',
     name: 'Checkout',
     step: 'SB Mart',
-    blurb: "Dilan's counter. The register is older than the factory and he refuses to replace it.",
-    stats: [
-      { label: 'Cashier', value: 'Dilan' },
-      { label: 'Register', value: 'SB-MART-01' },
-    ],
+    blurb: 'The counter. The register is older than the factory and neither of the people who work it will hear of replacing it.',
+    stats: [{ label: 'Register', value: 'SB-MART-01' }],
     accent: '#c98f3a',
     anchorHeight: 1.9,
+  },
+  {
+    id: 'marttrolley',
+    name: 'Shop Trolley',
+    step: 'SB Mart',
+    blurb: 'The same order the Lab\u2019s trolley is holding, on this side of the wall. Whatever you add lands in it.',
+    stats: [
+      { label: 'Owner', value: 'Whoever left it' },
+      { label: 'Wheels', value: 'Three good ones' },
+    ],
+    accent: '#e4738f',
+    anchorHeight: 1.5,
+  },
+  {
+    id: 'oyen',
+    name: 'Oyen',
+    step: 'Shop Cat',
+    blurb: 'Came in through the delivery door two winters ago and has not left. Sleeps on the rug, supervises from the counter, answers to nothing.',
+    stats: [
+      { label: 'Post', value: 'Wherever it is warm' },
+      { label: 'Duties', value: 'None agreed' },
+      { label: 'Naps', value: '11 today' },
+    ],
+    accent: '#dda86a',
+    anchorHeight: 0.85,
+  },
+  {
+    id: 'radio',
+    name: 'The Set',
+    step: 'SB Mart',
+    blurb: 'A valve radio somebody left by the door. The dial runs a hundred years and most of it is static \u2014 but not all of it.',
+    stats: [
+      { label: 'Band', value: '1990 \u2013 2090' },
+      { label: 'Condition', value: 'Warm to the touch' },
+    ],
+    accent: '#c98f3a',
+    anchorHeight: 1.3,
   },
 );
 

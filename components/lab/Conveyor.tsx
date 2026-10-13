@@ -5,20 +5,19 @@ import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { PALETTE } from '@/lib/palette';
-import { SIGNATURE_PRODUCTS } from '@/lib/products';
+import { BUCKET_PRODUCTS, FRUIT_PRODUCTS } from '@/lib/products';
+import { CUP_SCALE } from '@/lib/cupSize';
 import { BELT } from '@/lib/layout';
 import { hoverEntity, selectEntity, useIsHovered, useIsSelected } from '@/lib/interaction';
 import { registerAnchor, unregisterAnchor } from '@/lib/anchors';
 import { useLabQuality } from './QualityContext';
+import { FruitCupProp } from '@/components/mart/FruitCup';
+import { BucketProp } from '@/components/mart/SlimeBucket';
 
 const NO_HIT = () => null;
 
-/**
- * Seconds for one jar to travel the whole line. Slow on purpose, and scaled up
- * from 34 with the belt's new length so the cargo still moves at the same speed.
- */
-const TRAVEL_SECONDS = 43;
-const JAR_COUNT = 10;
+/** Spacing between items along the belt, which sets how many are in transit. */
+const JAR_SPACING = 1.1;
 const SLAT_COUNT = 33;
 
 /**
@@ -37,8 +36,7 @@ const SLAT_COUNT = 33;
 export function Conveyor() {
   const anchorRef = useRef<THREE.Group>(null);
   const jarsRef = useRef<THREE.Group>(null);
-  const slatsRef = useRef<THREE.Group>(null);
-  const rollersRef = useRef<THREE.Group>(null);
+  const slatsRef = useRef<THREE.InstancedMesh>(null);
   const { reducedMotion } = useLabQuality();
 
   const hovered = useIsHovered('station', 'conveyor');
@@ -47,15 +45,44 @@ export function Conveyor() {
 
   const beltLength = BELT.endX - BELT.startX;
   const beltCentre = (BELT.startX + BELT.endX) / 2;
+  /*
+    Jars now run only as far as the packaging tunnel — everything east of it is
+    shippers, which the palletiser owns. Derived from the belt's own speed rather
+    than a hand-set duration, so the run can be shortened again without the
+    cargo quietly changing pace.
+  */
   const travelSpan = BELT.retireX - BELT.spawnX;
+  const travelSeconds = travelSpan / BELT.speed;
+  /*
+    The slats run the whole bed, the cargo only the stretch between the wall and
+    the packaging tunnel — so they cannot share a lap time. They did, which ran
+    the belt surface at 1.9x the speed of the things standing on it: the slats
+    visibly slid out from under every cup. Each now takes its own distance at
+    BELT.speed, which is the one number both are supposed to move at.
+  */
+  const slatSeconds = beltLength / BELT.speed;
+  /* Rounded to an even number, so the two designs alternate all the way round —
+     an odd count puts two of a kind side by side wherever the loop closes. */
+  const jarCount = Math.max(2, Math.round(travelSpan / JAR_SPACING / 2) * 2);
+
+  /** Reused every frame; writing a fresh Matrix4 per slat would be 33 a frame. */
+  const slat = useMemo(() => new THREE.Matrix4(), []);
 
   const jars = useMemo(
     () =>
-      Array.from({ length: JAR_COUNT }, (_, index) => ({
-        product: SIGNATURE_PRODUCTS[index % SIGNATURE_PRODUCTS.length],
-        offset: index / JAR_COUNT,
-      })),
-    [],
+      Array.from({ length: jarCount }, (_, index) => {
+        const bucket = index % 2 === 1;
+        const pair = Math.floor(index / 2);
+        return {
+          bucket,
+          // every third fruit cup, so a short run of cargo still shows a spread
+          product: bucket
+            ? BUCKET_PRODUCTS[pair % BUCKET_PRODUCTS.length]
+            : FRUIT_PRODUCTS[(pair * 3) % FRUIT_PRODUCTS.length],
+          offset: index / jarCount,
+        };
+      }),
+    [jarCount],
   );
 
   useEffect(() => {
@@ -68,9 +95,10 @@ export function Conveyor() {
     };
   }, []);
 
-  useFrame(({ clock }, delta) => {
+  useFrame(({ clock }) => {
     if (reducedMotion) return;
-    const t = clock.getElapsedTime() / TRAVEL_SECONDS;
+    const elapsed = clock.getElapsedTime();
+    const t = elapsed / travelSeconds;
 
     jarsRef.current?.children.forEach((jar, index) => {
       const progress = (t + jars[index].offset) % 1;
@@ -79,14 +107,21 @@ export function Conveyor() {
       jar.rotation.z = Math.sin(clock.getElapsedTime() * 2.2 + index) * 0.035;
     });
 
-    slatsRef.current?.children.forEach((slat, index) => {
-      const progress = (t + index / SLAT_COUNT) % 1;
-      slat.position.x = BELT.startX + progress * beltLength;
-    });
+    /*
+      One InstancedMesh rather than thirty-three meshes. They are identical
+      boxes in one material moving along one axis, which is the exact shape
+      instancing is for — same pixels, one draw call instead of thirty-three.
+    */
+    const slats = slatsRef.current;
+    if (slats) {
+      for (let index = 0; index < SLAT_COUNT; index += 1) {
+        const progress = (elapsed / slatSeconds + index / SLAT_COUNT) % 1;
+        slat.makeTranslation(BELT.startX + progress * beltLength, 0, 0);
+        slats.setMatrixAt(index, slat);
+      }
+      slats.instanceMatrix.needsUpdate = true;
+    }
 
-    rollersRef.current?.children.forEach((roller) => {
-      roller.rotation.z -= delta * 1.6;
-    });
   });
 
   return (
@@ -123,24 +158,18 @@ export function Conveyor() {
       </group>
 
       {/* moving slats, so the belt visibly runs */}
-      <group ref={slatsRef} position={[0, BELT.y + 0.085, BELT.z]}>
-        {Array.from({ length: SLAT_COUNT }, (_, index) => (
-          <mesh key={index} raycast={NO_HIT}>
-            <boxGeometry args={[0.05, 0.012, 0.66]} />
-            <meshStandardMaterial color="#6d7686" roughness={0.9} />
-          </mesh>
-        ))}
-      </group>
+      <instancedMesh
+        ref={slatsRef}
+        args={[undefined, undefined, SLAT_COUNT]}
+        position={[0, BELT.y + 0.085, BELT.z]}
+        frustumCulled={false}
+        raycast={NO_HIT}
+      >
+        <boxGeometry args={[0.05, 0.012, 0.66]} />
+        <meshStandardMaterial color="#6d7686" roughness={0.9} />
+      </instancedMesh>
 
-      {/* end rollers and legs */}
-      <group ref={rollersRef}>
-        {[BELT.startX, BELT.endX].map((x) => (
-          <mesh key={x} position={[x, BELT.y, BELT.z]} rotation={[Math.PI / 2, 0, 0]} castShadow raycast={NO_HIT}>
-            <cylinderGeometry args={[0.13, 0.13, 0.78, 16]} />
-            <meshStandardMaterial color={PALETTE.metalDark} roughness={0.35} metalness={0.6} />
-          </mesh>
-        ))}
-      </group>
+      {/* legs */}
       {[BELT.startX + 0.5, BELT.endX - 0.5].map((x) => (
         <mesh key={x} position={[x, 0.24, BELT.z]} castShadow raycast={NO_HIT}>
           <boxGeometry args={[0.2, 0.48, 0.6]} />
@@ -168,35 +197,23 @@ export function Conveyor() {
       </group>
 
       {/*
-        Decorative cargo. These are Mainline cup silhouettes rather than the real
-        `SlimeTub` component: a tub on the belt must not register a product
-        anchor, or the ten of them would fight the shelved cups for the same ids.
-        Non-interactive by design — only workers, machines, stations and
-        designated product objects respond to the pointer.
+        The cargo: the shop's two newest lines, a fruit series cup and a boba
+        bucket in turn, at the size every cup in both rooms is. They are the
+        SB Mart models, as props — a cup riding the belt must not register a
+        product anchor, or it would fight the one on the stand for the same id,
+        and nothing on the belt answers the pointer.
+
+        Both models stand on their own origin, so the group sits exactly on the
+        slat tops.
       */}
-      <group ref={jarsRef} position={[0, BELT.y + 0.2, BELT.z]}>
-        {jars.map(({ product }, index) => (
+      <group ref={jarsRef} position={[0, BELT.surfaceY, BELT.z]}>
+        {jars.map(({ product, bucket }, index) => (
           <group key={index}>
-            {/* foot ring */}
-            <mesh position={[0, 0.02, 0]} castShadow raycast={NO_HIT}>
-              <cylinderGeometry args={[0.115, 0.12, 0.03, 20]} />
-              <meshStandardMaterial color="#d9d9d6" roughness={0.55} />
-            </mesh>
-            {/* tapered body */}
-            <mesh position={[0, 0.14, 0]} castShadow raycast={NO_HIT}>
-              <cylinderGeometry args={[0.145, 0.118, 0.22, 20]} />
-              <meshPhysicalMaterial color={product.color} roughness={0.22} clearcoat={0.8} transparent opacity={0.93} />
-            </mesh>
-            {/* chunky white lid */}
-            <mesh position={[0, 0.28, 0]} castShadow raycast={NO_HIT}>
-              <cylinderGeometry args={[0.163, 0.163, 0.08, 22]} />
-              <meshStandardMaterial color="#fbfbf9" roughness={0.45} />
-            </mesh>
-            {/* the lid's printed disc, in the flavour's own colour */}
-            <mesh position={[0, 0.321, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={NO_HIT}>
-              <circleGeometry args={[0.125, 20]} />
-              <meshStandardMaterial color={product.accent} roughness={0.6} />
-            </mesh>
+            {bucket ? (
+              <BucketProp product={product} position={[0, 0, 0]} scale={CUP_SCALE.bucket} />
+            ) : (
+              <FruitCupProp product={product} position={[0, 0, 0]} scale={CUP_SCALE.fruit} />
+            )}
           </group>
         ))}
       </group>

@@ -27,7 +27,8 @@ export const MART_POS = {
   returnDoor: [-2.6, 0, MART_FACE_Z] as const,
   sign: [0.5, 3.05, MART_FACE_Z] as const,
   /** Wall run carrying the four signature jars. */
-  wallShelf: [0.2, 0, -3.85] as const,
+  /** Runs from the door end of the back wall up to the record cabinet's edge. */
+  wallShelf: [0.4, 0, -3.9] as const,
   /** The record cabinet, where the chiller used to stand. */
   vinyl: [3.4, 0, -3.9] as const,
   /** Moved across to sit in front of the record cabinet, so the till, the
@@ -37,7 +38,24 @@ export const MART_POS = {
   carpet: [0.2, 0, -0.3] as const,
   trolley: [2.6, 0, 2.3] as const,
   mat: [3.4, 0, 3.0] as const,
-  stock: [-4.0, 0, -2.6] as const,
+  /** Side table by the return door, where the stock boxes used to be stacked. */
+  sideTable: [-4.05, 0, -2.55] as const,
+  /** Standing lamp in the corner behind the table. */
+  lamp: [-4.32, 0, -3.82] as const,
+  /** Big statement plant in the empty west corner. */
+  monstera: [-4.0, 0, -0.6] as const,
+  /** The shop cat, asleep on the rug and off the monogram. */
+  cat: [0.9, 0, 0.5] as const,
+  /**
+   * The series island: all three lines on one fixture, square to the room so it
+   * lines up with the wall run behind it.
+   *
+   * It stands in the middle of the floor, which is where everybody walked, so
+   * both keepers' corridors were re-routed around it — see `lib/workers.ts`.
+   * Measured against every other fixture with the 0.28 body radius: the tightest
+   * leg of either corridor now clears it by 0.65, and the rug is untouched.
+   */
+  seriesIsland: [-0.3, 0, 2.35] as const,
 } as const;
 
 /**
@@ -48,7 +66,7 @@ export const MART_POS = {
 /* Sits right of centre: with the counter moved across to the record cabinet,
    the whole shop now lives on the back and right of the floor, and aiming at
    the middle framed a lot of empty carpet. */
-export const MART_HOME_TARGET = new THREE.Vector3(1.1, 1.2, -1.1);
+export const MART_HOME_TARGET = new THREE.Vector3(0.7, 1.2, -1.0);
 export const MART_FOV = 40;
 export const MART_VIEW_DIRECTION = HOME_POSITION.clone().sub(HOME_TARGET).normalize();
 
@@ -78,10 +96,11 @@ export function martHomePosition(aspect: number): THREE.Vector3 {
 }
 
 /** Named vantage points, used when a fixture is tapped. */
-export type MartPreset = 'shelf' | 'counter' | 'vinyl';
+export type MartPreset = 'shelf' | 'counter' | 'vinyl' | 'series';
 
 export const MART_PRESETS: Record<MartPreset, { target: THREE.Vector3; distance: number }> = {
-  shelf: { target: new THREE.Vector3(0.2, 1.3, -3.4), distance: 5.2 },
-  counter: { target: new THREE.Vector3(3.6, 1.1, -2.3), distance: 5.2 },
+  shelf: { target: new THREE.Vector3(0.4, 1.3, -3.5), distance: 5.4 },
+  counter: { target: new THREE.Vector3(3.6, 0.95, -2.3), distance: 5.2 },
   vinyl: { target: new THREE.Vector3(3.4, 1.3, -3.5), distance: 4.8 },
+  series: { target: new THREE.Vector3(-0.3, 1.05, 2.35), distance: 5.0 },
 };

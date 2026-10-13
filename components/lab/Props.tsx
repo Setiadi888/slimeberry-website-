@@ -1,10 +1,12 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { PALETTE } from '@/lib/palette';
+import { goalForToday } from '@/lib/goals';
+import { onLabEvent } from '@/lib/labEvents';
 import { useLabQuality } from './QualityContext';
 
 /** Decorative props never take pointer hits (see the interaction hierarchy). */
@@ -83,13 +85,51 @@ export function Beaker({
   );
 }
 
+/** Bands down the bore, so the slime inside the glass reads as moving. */
+function useFlowTexture(): THREE.CanvasTexture {
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 16;
+    const ctx = canvas.getContext('2d')!;
+    const gradient = ctx.createLinearGradient(0, 0, 128, 0);
+    gradient.addColorStop(0, '#e4738f');
+    gradient.addColorStop(0.35, '#f3a6b8');
+    gradient.addColorStop(0.5, '#ffd2dd');
+    gradient.addColorStop(0.65, '#f3a6b8');
+    gradient.addColorStop(1, '#e4738f');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 128, 16);
+    const map = new THREE.CanvasTexture(canvas);
+    map.colorSpace = THREE.SRGBColorSpace;
+    map.wrapS = THREE.RepeatWrapping;
+    map.wrapT = THREE.RepeatWrapping;
+    map.repeat.set(5, 1);
+    return map;
+  }, []);
+  useEffect(() => () => texture.dispose(), [texture]);
+  return texture;
+}
+
 /**
- * Pipework linking the machine to the tanks. Small beads travel the curve to
- * suggest flow — four moving meshes rather than an animated texture.
+ * Pipework linking the machine to the tanks.
+ *
+ * The run between the collars is a sight glass rather than steel, because the
+ * point of the pipe is what is going through it: a core of slime fills the bore,
+ * its banding scrolls along the curve, and four heavier blobs ride the same line
+ * so the flow has something to read against.
+ *
+ * It runs at a trickle on its own and speeds up for as long as the mixer is
+ * going, which is the same `machine:start` the button and the workers fire — so
+ * pressing the button over there moves the slime up here.
  */
 export function Pipes() {
   const { reducedMotion } = useLabQuality();
   const beadsRef = useRef<THREE.Group>(null);
+  const flow = useFlowTexture();
+  /** Runs down from 1 after the mixer is kicked, so the flow eases off. */
+  const surge = useRef(0);
+  const rate = useRef(0);
 
   // A short arc now: the tanks stand next to the mixer rather than across the
   // room, so the pipe only has to hop the gap between them.
@@ -106,20 +146,47 @@ export function Pipes() {
   );
 
   const tube = useMemo(() => new THREE.TubeGeometry(curve, 48, 0.11, 12, false), [curve]);
+  /** The slime standing in the bore, a shade inside the glass. */
+  const core = useMemo(() => new THREE.TubeGeometry(curve, 48, 0.082, 12, false), [curve]);
+  useEffect(() => () => {
+    tube.dispose();
+    core.dispose();
+  }, [tube, core]);
 
-  useFrame(({ clock }) => {
+  useEffect(() => onLabEvent('machine:start', () => {
+    surge.current = 1;
+  }), []);
+
+  useFrame((_, delta) => {
+    const step = Math.min(delta, 1 / 30);
+    // the mixer's kick lasts about six seconds; the flow follows it down
+    surge.current = Math.max(0, surge.current - step / 6.2);
+    const speed = reducedMotion ? 0 : 0.035 + surge.current * 0.28;
+    rate.current += step * speed;
+    flow.offset.x = -rate.current * 3;
+
     if (!beadsRef.current || reducedMotion) return;
-    const t = clock.getElapsedTime() * 0.14;
     beadsRef.current.children.forEach((bead, index) => {
-      const progress = (t + index / beadsRef.current!.children.length) % 1;
+      const progress = (rate.current + index / beadsRef.current!.children.length) % 1;
       curve.getPointAt(progress, bead.position as THREE.Vector3);
     });
   });
 
   return (
     <group>
+      <mesh geometry={core} raycast={NO_HIT}>
+        <meshStandardMaterial map={flow} roughness={0.28} emissive="#e4738f" emissiveIntensity={0.12} />
+      </mesh>
       <mesh geometry={tube} castShadow receiveShadow>
-        <meshStandardMaterial color={PALETTE.metal} roughness={0.35} metalness={0.45} />
+        <meshPhysicalMaterial
+          color="#eaf6fb"
+          roughness={0.08}
+          metalness={0}
+          transparent
+          opacity={0.3}
+          clearcoat={1}
+          side={THREE.DoubleSide}
+        />
       </mesh>
       {/* collars */}
       {[0.18, 0.5, 0.82].map((t) => {
@@ -258,98 +325,151 @@ export function JunoNotes({ position, rotation = 0 }: { position: [number, numbe
   );
 }
 
-export function CacaTools({ position, rotation = 0 }: { position: [number, number, number]; rotation?: number }) {
+/**
+ * The chalkboard on the back wall.
+ *
+ * Chalk is the whole trick here: a clean vector stroke reads as a decal, so the
+ * text is drawn three times at sub-pixel offsets in low alpha before the solid
+ * pass, and a wash of speckle is laid over the slate. That is what makes a flat
+ * canvas look like something somebody wrote with their hand.
+ */
+export function Chalkboard({ position, rotation = 0 }: { position: [number, number, number]; rotation?: number }) {
+  const painted = useMemo(() => {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 400;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.fillStyle = '#2f4038';
+    ctx.fillRect(0, 0, 640, 400);
+
+    // the ghost of everything wiped off it this week
+    for (let i = 0; i < 90; i += 1) {
+      ctx.fillStyle = `rgba(232,238,228,${0.012 + Math.random() * 0.022})`;
+      ctx.beginPath();
+      ctx.ellipse(
+        Math.random() * 640,
+        Math.random() * 400,
+        30 + Math.random() * 90,
+        6 + Math.random() * 16,
+        Math.random() * Math.PI,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    }
+
+    ctx.textAlign = 'center';
+
+    /** One line, laid down as chalk: soft passes first, then the solid stroke. */
+    const chalk = (text: string, y: number, font: string, colour: string) => {
+      ctx.font = font;
+      for (let i = 0; i < 3; i += 1) {
+        ctx.fillStyle = colour.replace('ALPHA', '0.16');
+        ctx.fillText(text, 320 + (Math.random() - 0.5) * 3.4, y + (Math.random() - 0.5) * 3.4);
+      }
+      ctx.fillStyle = colour.replace('ALPHA', '0.94');
+      ctx.fillText(text, 320, y);
+    };
+
+    chalk("TODAY'S GOAL", 96, '600 40px ui-rounded, "SF Pro Rounded", system-ui, sans-serif', 'rgba(180,208,178,ALPHA)');
+
+    // underline, drawn as a wobbly hand-pulled rule
+    ctx.strokeStyle = 'rgba(180,208,178,0.55)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(196, 122);
+    for (let x = 196; x <= 444; x += 22) ctx.lineTo(x, 122 + (Math.random() - 0.5) * 3.6);
+    ctx.stroke();
+
+    /*
+      Today's goal, wrapped to fit rather than trusted to.
+
+      The line changes daily and they are not all the same length, so the size is
+      stepped down until the longest word fits and the whole thing lands in three
+      lines or fewer. Written once when the board mounts: a page left open across
+      midnight will still show yesterday's, which is exactly what a real board in
+      an empty room would do.
+    */
+    const body = goalForToday();
+    const hand = (size: number) =>
+      `600 ${size}px ui-rounded, "SF Pro Rounded", system-ui, sans-serif`;
+
+    let size = 62;
+    let lines: string[] = [];
+    for (; size >= 30; size -= 3) {
+      ctx.font = hand(size);
+      lines = [];
+      let line = '';
+      for (const word of body.split(' ')) {
+        const candidate = line ? `${line} ${word}` : word;
+        if (ctx.measureText(candidate).width <= 512) {
+          line = candidate;
+        } else {
+          if (line) lines.push(line);
+          line = word;
+        }
+      }
+      if (line) lines.push(line);
+      if (lines.length <= 3 && lines.every((entry) => ctx.measureText(entry).width <= 512)) break;
+    }
+
+    const leading = size * 1.24;
+    const top = 246 - ((lines.length - 1) * leading) / 2;
+    lines.forEach((line, index) => {
+      chalk(line, top + index * leading, hand(size), 'rgba(244,248,240,ALPHA)');
+    });
+
+    // a little blob doodle up in the corner, because somebody always does
+    ctx.strokeStyle = 'rgba(232,180,200,0.8)';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.ellipse(576, 88, 30, 23, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(232,180,200,0.8)';
+    [-11, 11].forEach((dx) => {
+      ctx.beginPath();
+      ctx.arc(576 + dx, 83, 3.6, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
+    return texture;
+  }, []);
+
+  useEffect(() => () => painted?.dispose(), [painted]);
+
   return (
     <group position={position} rotation={[0, rotation, 0]}>
-      {/* clipboard */}
-      <group rotation={[0, -0.35, 0]}>
-        <mesh position={[0, 0.015, 0]} castShadow raycast={NO_HIT}>
-          <boxGeometry args={[0.3, 0.02, 0.38]} />
-          <meshStandardMaterial color={PALETTE.woodDark} roughness={0.8} />
-        </mesh>
-        <mesh position={[0, 0.03, -0.01]} raycast={NO_HIT}>
-          <boxGeometry args={[0.26, 0.008, 0.32]} />
-          <meshStandardMaterial color="#fdfaf4" roughness={0.75} />
-        </mesh>
-        <mesh position={[0, 0.042, 0.15]} raycast={NO_HIT}>
-          <boxGeometry args={[0.12, 0.02, 0.05]} />
-          <meshStandardMaterial color={PALETTE.metal} roughness={0.4} metalness={0.5} />
-        </mesh>
-        {/* ticked-off QC rows */}
-        {[-0.08, -0.02, 0.04].map((z) => (
-          <mesh key={z} position={[0, 0.036, z]} raycast={NO_HIT}>
-            <boxGeometry args={[0.16, 0.004, 0.012]} />
-            <meshStandardMaterial color="#9dc47f" roughness={0.8} />
-          </mesh>
-        ))}
-      </group>
-
-      {/* magnifying glass */}
-      <group position={[0.36, 0, 0.06]} rotation={[0, 0.5, 0]}>
-        <mesh position={[0, 0.03, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_HIT}>
-          <torusGeometry args={[0.075, 0.014, 8, 16]} />
-          <meshStandardMaterial color={PALETTE.metalDark} roughness={0.4} metalness={0.5} />
-        </mesh>
-        <mesh position={[0, 0.028, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_HIT}>
-          <circleGeometry args={[0.072, 20]} />
-          <meshPhysicalMaterial color="#eaf6fb" roughness={0.05} transparent opacity={0.4} />
-        </mesh>
-        <mesh position={[0.13, 0.03, 0]} rotation={[0, 0, Math.PI / 2]} raycast={NO_HIT}>
-          <cylinderGeometry args={[0.016, 0.016, 0.13, 8]} />
-          <meshStandardMaterial color="#8a5a3c" roughness={0.7} />
-        </mesh>
-      </group>
-    </group>
-  );
-}
-
-export function BimoSupplies({ position, rotation = 0 }: { position: [number, number, number]; rotation?: number }) {
-  return (
-    <group position={position} rotation={[0, rotation, 0]}>
-      {/* tape roll */}
-      <mesh position={[0, 0.05, 0]} rotation={[Math.PI / 2, 0, 0]} raycast={NO_HIT}>
-        <torusGeometry args={[0.075, 0.035, 8, 18]} />
-        <meshStandardMaterial color="#e8c98a" roughness={0.55} />
+      {/* frame */}
+      <RoundedBox args={[2.0, 1.32, 0.08]} radius={0.04} smoothness={3} castShadow receiveShadow raycast={NO_HIT}>
+        <meshStandardMaterial color={PALETTE.wood} roughness={0.82} />
+      </RoundedBox>
+      {/* slate */}
+      <mesh position={[0, 0.03, 0.05]} raycast={NO_HIT}>
+        <boxGeometry args={[1.82, 1.1, 0.02]} />
+        {painted ? (
+          <meshStandardMaterial map={painted} roughness={0.94} />
+        ) : (
+          <meshStandardMaterial color="#2f4038" roughness={0.94} />
+        )}
       </mesh>
-      {/* flat-packed boxes */}
-      <mesh position={[-0.3, 0.03, 0.08]} rotation={[0, 0.2, 0]} castShadow raycast={NO_HIT}>
-        <boxGeometry args={[0.34, 0.05, 0.26]} />
-        <meshStandardMaterial color={PALETTE.wood} roughness={0.85} />
-      </mesh>
-      <mesh position={[-0.3, 0.075, 0.08]} rotation={[0, 0.13, 0]} raycast={NO_HIT}>
-        <boxGeometry args={[0.34, 0.045, 0.26]} />
+      {/* chalk tray, with the stub of chalk somebody left on it */}
+      <mesh position={[0, -0.6, 0.09]} rotation={[0.18, 0, 0]} castShadow raycast={NO_HIT}>
+        <boxGeometry args={[1.86, 0.05, 0.1]} />
         <meshStandardMaterial color={PALETTE.woodDark} roughness={0.85} />
       </mesh>
-      {/* sheet of shipping labels */}
-      <mesh position={[0.26, 0.008, 0.02]} rotation={[0, -0.25, 0]} raycast={NO_HIT}>
-        <boxGeometry args={[0.24, 0.012, 0.18]} />
-        <meshStandardMaterial color="#fdfaf4" roughness={0.75} />
+      <mesh position={[0.52, -0.575, 0.11]} rotation={[0, 0, Math.PI / 2]} castShadow raycast={NO_HIT}>
+        <cylinderGeometry args={[0.018, 0.018, 0.11, 8]} />
+        <meshStandardMaterial color="#f2f5ec" roughness={0.9} />
       </mesh>
-      {[0.05, -0.02].map((z) => (
-        <mesh key={z} position={[0.26, 0.016, z]} rotation={[0, -0.25, 0]} raycast={NO_HIT}>
-          <boxGeometry args={[0.16, 0.004, 0.03]} />
-          <meshStandardMaterial color="#c9d0da" roughness={0.8} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-/** The board the lab log is written on. The text itself is a projected label. */
-export function LabLogBoard({ position, rotation = 0 }: { position: [number, number, number]; rotation?: number }) {
-  return (
-    <group position={position} rotation={[0, rotation, 0]}>
-      <mesh raycast={NO_HIT}>
-        <boxGeometry args={[0.9, 1.1, 0.06]} />
-        <meshStandardMaterial color={PALETTE.woodDark} roughness={0.85} />
-      </mesh>
-      <mesh position={[0, 0, 0.04]} raycast={NO_HIT}>
-        <boxGeometry args={[0.78, 0.96, 0.02]} />
-        <meshStandardMaterial color="#fdfaf4" roughness={0.8} />
-      </mesh>
-      <mesh position={[0, 0.5, 0.06]} raycast={NO_HIT}>
-        <boxGeometry args={[0.24, 0.08, 0.03]} />
-        <meshStandardMaterial color={PALETTE.metal} roughness={0.4} metalness={0.5} />
+      <mesh position={[-0.58, -0.565, 0.11]} castShadow raycast={NO_HIT}>
+        <boxGeometry args={[0.16, 0.07, 0.07]} />
+        <meshStandardMaterial color="#5e6a76" roughness={0.9} />
       </mesh>
     </group>
   );

@@ -9,6 +9,8 @@ import { onLabEvent } from '@/lib/labEvents';
 import { registerAnchor, unregisterAnchor } from '@/lib/anchors';
 import { hoverEntity, selectEntity, useIsHovered, useIsSelected } from '@/lib/interaction';
 import { useLabQuality } from './QualityContext';
+import { TurnedForm, type Profile } from './DesignedForms';
+import { NO_HIT } from './StationGroup';
 
 interface SlimeTankProps {
   id: string;
@@ -98,6 +100,8 @@ export function SlimeTank({
   });
 
   const slimeHeight = height * 0.72;
+  const lid = useMemo<Profile>(() => [[0,0],[radius+.08,0],[radius+.12,.03],[radius+.12,.08],
+    [radius+.04,.13],[radius*.75,.19],[radius*.3,.23],[0,.23]], [radius]);
 
   return (
     <group
@@ -165,10 +169,15 @@ export function SlimeTank({
         />
       </mesh>
 
-      <mesh position={[0, 0.24 + height, 0]} castShadow>
-        <cylinderGeometry args={[radius + 0.1, radius + 0.1, 0.16, 30]} />
-        <meshStandardMaterial color={PALETTE.metal} roughness={0.35} metalness={0.55} />
-      </mesh>
+      <group position={[0,.16+height,0]}><TurnedForm profile={lid} color={PALETTE.metal} roughness={.35} metalness={.55}/></group>
+      {/* Reinforced bands, lid clamps and a visible fill gauge. */}
+      {[-1,1].map(side=><mesh key={side} position={[side*(radius+.075),height+.2,0]} raycast={NO_HIT}>
+        <boxGeometry args={[.065,.24,.12]}/><meshStandardMaterial color={PALETTE.metalDark} metalness={.45} roughness={.4}/></mesh>)}
+      <group position={[radius*.65,.62,radius*.76]}>
+        <mesh raycast={NO_HIT}><boxGeometry args={[.09,height*.46,.022]}/><meshStandardMaterial color="#e3ece6" transparent opacity={.7}/></mesh>
+        {[0,1,2,3,4].map(i=><mesh key={i} position={[0,(i-2)*height*.09,.015]} raycast={NO_HIT}>
+          <boxGeometry args={[i%2?.03:.055,.012,.008]}/><meshStandardMaterial color="#607a77"/></mesh>)}
+      </group>
       <mesh position={[0, 0.24 + height + 0.16, 0]} castShadow>
         <cylinderGeometry args={[radius * 0.34, radius * 0.34, 0.2, 16]} />
         <meshStandardMaterial color={PALETTE.metalDark} roughness={0.4} metalness={0.5} />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, OrbitControls, RoundedBox } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -31,23 +31,33 @@ import { useLabQuality } from '@/components/lab/QualityContext';
 import { NO_HIT } from '@/components/lab/StationGroup';
 import { Doorway } from '@/components/lab/Doorway';
 import { Worker } from '@/components/lab/Worker';
+import { KEEPER_MODELS, StaffModel } from '@/components/lab/StaffModel';
+import { SeriesIsland } from './SeriesIsland';
 import { LabLighting } from '@/components/lab/LabLighting';
-import { DILAN, WORKERS } from '@/lib/workers';
-import { setLifeCast } from '@/lib/factoryLife';
+import { BotanicalPot } from '@/components/lab/BotanicalPlants';
+import { labCast, martCashier, martFloorCashier } from '@/lib/workers';
+import { readCrew, useCrew } from '@/lib/shift';
+import { setLifeCast, setLifeCat } from '@/lib/factoryLife';
 import {
   BlobCarpet,
   Checkout,
+  Monstera,
+  ShopCat,
   ShopDressing,
   ShoppingTrolley,
   SignatureWall,
   VinylCabinet,
+  WestWallCabinets,
 } from './MartFixtures';
+import { SecurityCamera } from '@/components/lab/SecurityCamera';
+
 
 /** Which fixture each selectable id frames up. */
 const PRESET_FOR: Record<string, MartPreset> = {
   martshelf: 'shelf',
   checkout: 'counter',
   vinyl: 'vinyl',
+  seriesisland: 'series',
 };
 
 function useMartSignTexture(flower: HTMLImageElement | null): THREE.CanvasTexture | null {
@@ -66,18 +76,15 @@ function useMartSignTexture(flower: HTMLImageElement | null): THREE.CanvasTextur
     ctx.fillRect(0, 186, 640, 14);
 
     // the SB is the flower mark itself, with MART set beside it
-    if (flower) drawContained(ctx, flower, 196, 96, 132, 132);
-    else drawFlowerFallback(ctx, 196, 96, 62, BRAND.green);
+    // centred vertically now the tagline underneath it is gone
+    if (flower) drawContained(ctx, flower, 196, 100, 140, 140);
+    else drawFlowerFallback(ctx, 196, 100, 66, BRAND.green);
 
     ctx.textAlign = 'left';
     ctx.fillStyle = '#e4738f';
     ctx.font = 'bold 96px ui-rounded, system-ui, sans-serif';
-    ctx.fillText('MART', 282, 128);
+    ctx.fillText('MART', 282, 132);
 
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#8b8f9c';
-    ctx.font = '600 26px ui-rounded, system-ui, sans-serif';
-    ctx.fillText('SLIME · SNACKS · SMALL THINGS', 320, 170);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -343,17 +350,30 @@ function ViewportBridge() {
  * no production line, one character instead of three, and no particle system.
  * Everything a shopper needs — jars, chiller, island, counter — is a fixture
  * they can tap, and every product uses the very same `Product` component the
- * Lab does, so the cart, the SB COIN wallet and the detail panel all carry over
- * untouched.
+ * Lab does, so the cart and the detail panel carry over untouched.
  */
 export function MartScene() {
   const { shadows, shadowMapSize } = useLabQuality();
+  /*
+    The shop keeps the same hours as the factory, and six keepers share it: one
+    has it until five in the evening and another through the night. Keyed by id below, so the change of
+    shift swaps the character rather than redressing one.
+  */
+  const crew = useCrew();
+  const cashier = martCashier(crew);
+  /* And the one who is out on the floor rather than behind the till. */
+  const floorKeeper = martFloorCashier(crew);
 
-  // ambient life follows the room: one cashier here, and no machines to rattle
+  // ambient life follows the room: one keeper and a cat, and no machines to rattle
   useEffect(() => {
-    setLifeCast([DILAN], false);
-    return () => setLifeCast(WORKERS, true);
-  }, []);
+    setLifeCast([cashier, floorKeeper]);
+    setLifeCat('oyen');
+    return () => {
+      // back to whichever crew is on the factory floor by the time we get there
+      setLifeCast(labCast(readCrew()), { tanks: true });
+      setLifeCat(null);
+    };
+  }, [cashier, floorKeeper]);
 
   return (
     <>
@@ -378,12 +398,45 @@ export function MartScene() {
       />
 
       <SignatureWall />
+      {/* all three lines, on one island */}
+      <SeriesIsland />
       <VinylCabinet />
       <Checkout />
-      <Worker data={DILAN} />
+      {/*
+        The keeper's own Suspense boundary, as Bibi has in the Lab: the model is
+        1.8MB, and hanging the whole shop off it would mean an empty room until
+        the character finished downloading.
+      */}
+      <Suspense fallback={null}>
+        <Worker
+          key={cashier.id}
+          data={cashier}
+          model={(pose) => <StaffModel pose={pose} src={KEEPER_MODELS.register} />}
+        />
+        <Worker
+          key={floorKeeper.id}
+          data={floorKeeper}
+          /* His irises came out of the file a bright amber that read as a
+             torch beam under the shop's lamps; the whites are untouched. */
+          model={(pose) => <StaffModel pose={pose} src={KEEPER_MODELS.floor} pupils="#1e6b45" />}
+        />
+      </Suspense>
 
+      <WestWallCabinets />
+      {/* the same camera, in the shop's own corner */}
+      <SecurityCamera position={[-4.5, 3.6, -4.1]} scale={1.15} />
       <BlobCarpet />
       <ShoppingTrolley />
+      <Monstera />
+      <BotanicalPot position={[-4.1, 0.14, -1.6]} kind="fern" scale={0.75} color="#d1d9be" />
+      <BotanicalPot position={[4.35, 0.14, 2.8]} kind="monstera" scale={0.8} color="#e6c6c0" />
+      <BotanicalPot position={[-3.85, 0.14, 3.7]} kind="fern" scale={0.8} />
+      {/* the shop has gone green: a monstera by the till end of the east wall, a
+          fern in the front corner, and one beside the door through to the Lab */}
+      <BotanicalPot position={[4.4, 0.14, -0.2]} kind="monstera" scale={0.85} color="#dcc8b0" />
+      <BotanicalPot position={[4.4, 0.14, 3.9]} kind="fern" scale={0.72} color="#e6c6c0" />
+      <BotanicalPot position={[-3.4, 0.14, -3.9]} kind="monstera" scale={0.7} color="#d1d9be" />
+      <ShopCat />
       <ShopDressing />
 
       <ReadySignal />
