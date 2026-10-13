@@ -7,7 +7,6 @@ import * as THREE from 'three';
 import { PALETTE } from '@/lib/palette';
 import { readShift } from '@/lib/shift';
 import { BotanicalPot } from './BotanicalPlants';
-import { Planter } from './Planter';
 
 const PANE_DAY = new THREE.Color('#fdf1dc');
 const PANE_NIGHT = new THREE.Color('#26304f');
@@ -128,9 +127,6 @@ export function LabEnvironment() {
       <PottedPlant position={[7.2, 0.13, -4.3]} scale={0.82} phase={2.4} variant="succulent" />
       {/* Tucked into the front corner, clear of the belt's new lane. */}
       <PottedPlant position={[-7.1, 0.13, 5.05]} scale={0.7} phase={4.1} variant="succulent" />
-      {/* The pair of pots that used to stand either side of the way through to
-          SB Mart are one planted trough now — see `Planter`. */}
-      <Planter position={[7.02, 0, -1.25]} length={3.3} rotation={Math.PI / 2} />
       <BotanicalPot position={[-7.0, 0.14, 2.35]} kind="fern" scale={0.7} color="#d1d9be" />
       {/* two more down the quiet edges of the floor: in the corner behind the
           shop shelf, and at the west end of the belt. The third stood at

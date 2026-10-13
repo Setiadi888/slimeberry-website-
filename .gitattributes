@@ -1,0 +1,19 @@
+# Line endings: every text file is stored and checked out with LF, on every
+# machine. Without this, Git for Windows converts to CRLF on checkout, and the
+# first save in an editor that keeps them turns a one-line change into a
+# whole-file diff. The repo is LF throughout already, so this changes nothing
+# that is committed — it only stops the drift from starting.
+* text=auto eol=lf
+
+# Binary assets are never line-ending converted or diffed as text.
+*.glb    binary
+*.gltf   binary
+*.bin    binary
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.webp   binary
+*.gif    binary
+*.ico    binary
+*.woff   binary
+*.woff2  binary

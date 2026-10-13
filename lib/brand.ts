@@ -12,7 +12,7 @@ import * as THREE from 'three';
  * absent, so the scene never breaks over a missing asset and picks up the real
  * mark the moment one is dropped in.
  *
- * Drop these three files in to activate them:
+ * Drop these three files in, then list each one in `SUPPLIED` below:
  *
  *   public/brand/slimeberry-wordmark.png   the stacked logo with the leaf crown
  *   public/brand/sb-flower-green.png       the green SB flower
@@ -28,6 +28,17 @@ const FILES: Record<BrandMark, string> = {
   flowerGreen: '/brand/sb-flower-green.png',
   flowerBlue: '/brand/sb-flower-blue.png',
 };
+
+/**
+ * Which marks are actually sitting in `public/brand/` right now.
+ *
+ * A mark not listed here settles on its drawn fallback without a request. The
+ * loader used to ask for all three regardless, and with none of them supplied
+ * that was three 404s in every visitor's console on every page load — to find
+ * out something the fallback was going to draw over anyway. Add a mark here the
+ * day its file goes in, and the real artwork replaces the stand-in everywhere.
+ */
+const SUPPLIED: ReadonlySet<BrandMark> = new Set<BrandMark>([]);
 
 /** Brand colours, used by the fallbacks and by anything drawing alongside. */
 export const BRAND = {
@@ -46,6 +57,12 @@ function load(mark: BrandMark): Promise<HTMLImageElement | null> {
 
   const promise = new Promise<HTMLImageElement | null>((resolve) => {
     if (typeof window === 'undefined') {
+      resolve(null);
+      return;
+    }
+    if (!SUPPLIED.has(mark)) {
+      // not supplied — a settled answer, so nothing goes over the wire for it
+      cache.set(mark, null);
       resolve(null);
       return;
     }
