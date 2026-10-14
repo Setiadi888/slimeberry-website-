@@ -34,6 +34,7 @@ import { Worker } from '@/components/lab/Worker';
 import { KEEPER_MODELS, StaffModel } from '@/components/lab/StaffModel';
 import { SeriesIsland } from './SeriesIsland';
 import { MomoInstallation } from './MomoInstallation';
+import { OverheadBelt } from './OverheadBelt';
 import { LabLighting } from '@/components/lab/LabLighting';
 import { BotanicalPot } from '@/components/lab/BotanicalPlants';
 import { labCast, martCashier, martFloorCashier } from '@/lib/workers';
@@ -407,6 +408,8 @@ export function MartScene() {
       {/* all three lines, on one island */}
       <SeriesIsland />
       <Suspense fallback={null}><MomoInstallation /></Suspense>
+      {/* the stock line, running overhead around the corner of the two walls */}
+      <OverheadBelt />
       <VinylCabinet />
       <Checkout />
       {/*
@@ -430,7 +433,8 @@ export function MartScene() {
       </Suspense>
 
       {/* The spare west-wall cabinets and the center rug made way for the installation. */}
-      <SecurityCamera position={[-6.25, 4.45, -5.55]} scale={1.15} />
+      {/* dropped below the overhead belt, which now owns the top of this corner */}
+      <SecurityCamera position={[-6.25, 3.45, -5.55]} scale={1.15} />
       <ShoppingTrolley />
       <Monstera />
       <BotanicalPot position={[-6.0, 0.14, 2.4]} kind="fern" scale={0.75} color="#c1c4bc" />
