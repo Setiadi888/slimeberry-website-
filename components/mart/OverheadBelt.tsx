@@ -18,6 +18,8 @@ const MOUNT_Y = 4.5;
 /** The belt runs this far in front of each wall face. */
 const PROUD = 0.5;
 const BELT_HALF = 0.28;
+/** The brackets wear the wall's own tone, a hair darker, so only a soft shadow finds them. */
+const BRACKET = '#ddd9d1';
 /** Metres a second — a touch above the Lab's 0.32, for a long smooth overhead run. */
 const SPEED = 0.42;
 
@@ -293,15 +295,37 @@ export function OverheadBelt() {
       {/* hangers off the two walls */}
       {brackets.map(([bx, by, bz], i) => {
         const onBack = bz === MART_FACE_Z + PROUD;
+        /*
+          One slim shelf the belt sits on rather than an arm-and-drop bracket,
+          in the wall's own matte tone — so the belt reads as resting on the wall
+          rather than bolted off it. The shelf runs from under the belt back to a
+          flush pad on the wall, with a soft diagonal brace so it still looks
+          carried. Local frame: the wall is at -z; the west run is the same piece
+          turned a quarter.
+        */
         return (
-          <group key={i} position={[bx, by, bz]}>
-            <mesh position={onBack ? [0, 0.18, -PROUD / 2] : [-PROUD / 2, 0.18, 0]} castShadow raycast={NO_HIT}>
-              <boxGeometry args={onBack ? [0.05, 0.05, PROUD] : [PROUD, 0.05, 0.05]} />
-              <meshStandardMaterial color={FINISH.steel} {...FINISH_PBR.steel} />
+          <group key={i} position={[bx, by, bz]} rotation={[0, onBack ? 0 : Math.PI / 2, 0]}>
+            {/* the shelf, just under the belt frame */}
+            <RoundedBox
+              args={[0.05, 0.028, PROUD + 0.06]}
+              radius={0.012}
+              smoothness={2}
+              position={[0, -0.1, -PROUD / 2 + 0.02]}
+              castShadow
+              receiveShadow
+              raycast={NO_HIT}
+            >
+              <meshStandardMaterial color={BRACKET} roughness={0.92} metalness={0} />
+            </RoundedBox>
+            {/* a soft diagonal brace down to the wall */}
+            <mesh position={[0, -0.24, -PROUD + 0.17]} rotation={[0.7, 0, 0]} castShadow raycast={NO_HIT}>
+              <boxGeometry args={[0.026, 0.4, 0.026]} />
+              <meshStandardMaterial color={BRACKET} roughness={0.92} metalness={0} />
             </mesh>
-            <mesh position={[0, 0.09, 0]} castShadow raycast={NO_HIT}>
-              <boxGeometry args={[0.04, 0.22, 0.04]} />
-              <meshStandardMaterial color={FINISH.black} {...FINISH_PBR.black} />
+            {/* a flush pad where it meets the wall, so the join is clean */}
+            <mesh position={[0, -0.18, -PROUD + 0.012]} raycast={NO_HIT}>
+              <boxGeometry args={[0.1, 0.34, 0.016]} />
+              <meshStandardMaterial color={BRACKET} roughness={0.94} metalness={0} />
             </mesh>
           </group>
         );
